@@ -1,0 +1,64 @@
+---
+name: action-cxx-toolkit
+auhor: LucTeo
+description: 'Build C++ projects (make, cmake, conan) and runs various checks on it (warnings, install, test, clang-format, clang-tidy, sanitize, cppcheck, iwyu, coverage)'
+branding:
+  icon: 'check-circle'
+  color: 'green'
+inputs:
+  checks:
+    description: |
+      The preset to be used for building and testing the software. Can be one or multiple items (separated by comma):
+        - build -- just build the software
+        - warnings -- fails if there are some warnings while building
+        - install -- check that the software can be installed
+        - test -- check that the software can run its tests
+        - clang-format -- check that clang-format doesn't change the files
+        - clang-tidy -- static analysis by clang-tidy
+        - sanitize=* -- uses sanitizer when running the tests; can be used with multiple sanitiers
+        - cppcheck -- runs cppcheck to perform static code analyisis of the source code
+        - iwyu -- checks that the files don't include headers that they don't need
+        - coverage=(codecov, lcov) -- checks the coverage of the tests run; can upload data to codecov.io, or generate a coverage report with lcov
+    default: ''
+  dependencies:
+    description: 'Ubuntu packges to install before building the software'
+    default: ''
+  directory:
+    description: 'The directory to start building from'
+    default: ''
+  cc:
+    description: 'The C compiler to use; based on it the C++ compiler is also deduced'
+    default: 'gcc'
+  cflags:
+    description: 'The CFLAGS to be passed to the compilation'
+    default: ''
+  cxxflags:
+    description: 'The CXXFLAGS to be passed to the compilation'
+    default: ''
+  conanflags:
+    description: 'The flags to be passed to conan (if using conan)'
+    default: ''
+  cmakeflags:
+    description: 'The flags to be passed to cmake (if using cmake)'
+    default: ''
+  ctestflags:
+    description: 'The flags to be passed to ctest (if using cmake/ctest)'
+    default: ''
+  makeflags:
+    description: 'The flags to be passed to make (if using plain make)'
+    default: ''
+  prebuild_command:
+    description: 'Command to be run before building starts'
+    default: ''
+  build_command:
+    description: 'Command to be run to build the software (conan, cmake, make)'
+    default: ''
+  postbuild_command:
+    description: 'Command to be run to after the software is built'
+    default: ''
+  test_command:
+    description: 'Command to be run to test the built software'
+    default: ''
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
