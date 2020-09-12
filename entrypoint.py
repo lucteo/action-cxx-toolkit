@@ -203,10 +203,11 @@ def configure_conan(compilerVer, envFlags, buildType = 'Release'):
     elif len(p) > 1:
         ver = p[1]
         conan_extra_flags += f' -s compiler.version={ver}'
-    if compiler == 'gcc':
-        conan_extra_flags += ' -s compiler.libcxx=libstdc++11'
-    elif compiler == 'clang':
-        conan_extra_flags += ' -s compiler.libcxx=libc++'
+    if 'compiler.libcxx' not in conan_extra_flags:
+        if compiler == 'gcc':
+            conan_extra_flags += ' -s compiler.libcxx=libstdc++11'
+        elif compiler == 'clang':
+            conan_extra_flags += ' -s compiler.libcxx=libc++'
 
     # Generate the command
     conan_command = f'{envFlags} && conan install "{srcDir}" --build=missing -s build_type={buildType} {conan_extra_flags}'
@@ -295,7 +296,7 @@ def configure_cmake_build(compilerVer, envSetCmd, hasConan):
     buildCmds.add(Command(make_command))
     if check_make_err_log:
         buildCmds.add(Command('cat err_log.txt'))
-        buildCmds.add(Command('! grep -e "warning:" -e "error:" err_log.txt'))
+        buildCmds.add(Command('! grep -e "warning:" -e "Warning:" -e "error:" -e "style:" err_log.txt'))
 
     if 'install' in checks:
         install_command = f'cmake --install .'
@@ -354,6 +355,9 @@ def auto_build_phase():
     ''' Configures and runs the build phase (automatic mode). '''
     global checks
     global auto_test_cmd
+
+    if 'build' not in checks:
+        return
 
     HeaderPrint('Auto-determining build commands')()
     hasConan = os.path.isfile('conanfile.txt')

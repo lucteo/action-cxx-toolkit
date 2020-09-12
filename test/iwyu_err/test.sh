@@ -13,7 +13,7 @@ docker run --rm -it --workdir /github/workspace -v "${CURDIR}":/github/workspace
 status=$?
 
 # Check if the test succeeded
-if [ $status -eq 0 ]; then
+if [ $status -ne 0 ]; then
     echo
     echo "OK"
     echo
