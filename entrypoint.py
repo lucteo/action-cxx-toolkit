@@ -11,10 +11,14 @@ from dataclasses import dataclass
 #   INPUT_CC
 #   INPUT_CFLAGS
 #   INPUT_CXXFLAGS
-#   INPUT_MAKEFLAGS
 #   INPUT_CONANFLAGS
 #   INPUT_CMAKEFLAGS
 #   INPUT_CTESTFLAGS
+#   INPUT_MAKEFLAGS
+#   INPUT_IWYUFLAGS
+#   INPUT_CPPCHECKFLAGS
+#   INPUT_CLANGTIDYFLAGS
+#   INPUT_CLANGFORMATDIRS
 #   INPUT_PREBUILD_COMMAND
 #   INPUT_BUILD_COMMAND
 #   INPUT_POSTBUILD_COMMAND
@@ -157,16 +161,6 @@ def configure_compiler_options():
 
     # Build the compilation environment flags
     envSetCmd = f'export CC={cc} CXX={cxx}'
-    # TODO
-    # cflags = param('INPUT_CFLAGS')
-    # cxxflags = param('INPUT_CXXFLAGS')
-    makeflags = param('INPUT_MAKEFLAGS')
-    # if cflags:
-    #     envSetCmd += f' CFLAGS={cflags}'
-    # if cxxflags:
-    #     envSetCmd += f' CXXFLAGS={cxxflags}'
-    if makeflags:
-        envSetCmd += f' MAKEFLAGS={makeflags}'
     PropertyPrint('Environment flags to be used', envSetCmd)()
 
     # Update the alternatives, to ensure we are pointing to the right version
@@ -251,23 +245,15 @@ def configure_cmake_build(compilerVer, envSetCmd, hasConan):
     cmake_post_build_cmd = ''
     other_cmake_flags = ''
     cmake_cc_flags = ''
-    check_make_err_log = False
     if 'install' in checks:
         other_cmake_flags += f' -DCMAKE_INSTALL_PREFIX={installDir}'
     if 'warnings' in checks:
         cmake_cc_flags += ' -Wall -Werror'
     cmake_cc_flags += get_santizier_flags()
-    if 'clang-tidy' in checks:
-        tidy_cmd = f'"clang-tidy;-p={buildDir}"'
-        other_cmake_flags += f' -DCMAKE_C_CLANG_TIDY={tidy_cmd} -DCMAKE_CXX_CLANG_TIDY={tidy_cmd}'
-        check_make_err_log = True
-    if 'cppcheck' in checks:
-        cppcheck_cmd = f'"cppcheck;--enable=all"'
-        other_cmake_flags += f' -DCMAKE_C_CPPCHECK={cppcheck_cmd} -DCMAKE_CXX_CPPCHECK={cppcheck_cmd}'
-        check_make_err_log = True
-    if 'iwyu' in checks:
-        other_cmake_flags += ' -DCMAKE_C_INCLUDE_WHAT_YOU_USE=iwyu -DCMAKE_CXX_INCLUDE_WHAT_YOU_USE=iwyu'
-        check_make_err_log = True
+
+    if 'clang-tidy' in checks or 'cppcheck' in checks or 'iwyu' in checks:
+        other_cmake_flags += ' -DCMAKE_EXPORT_COMPILE_COMMANDS=1'
+
     if 'coverage=codecov' in checks or 'coverage=lcov' in checks:
         cmake_cc_flags += ' --coverage'
 
@@ -285,24 +271,39 @@ def configure_cmake_build(compilerVer, envSetCmd, hasConan):
 
     # Generate the actual commands to be run based on the above flags
     cmake_command = f'{envSetCmd} && cmake {cmake_flags} {other_cmake_flags} "{srcDir}"'
-    make_command = f'cmake --build . -v'
-    if check_make_err_log:
-        make_command += ' 2> err_log.txt'
+    make_params = param('INPUT_MAKEFLAGS', '')
+    make_command = f'cmake --build . -v {make_params}'
 
     PropertyPrint('Configure command', cmake_command)()
     PropertyPrint('Build command', make_command)()
-    PropertyPrint('Should check stderr', yesno(check_make_err_log))()
     buildCmds.add(Command(cmake_command))
-    buildCmds.add(Command(make_command))
-    if check_make_err_log:
-        buildCmds.add(Command('cat err_log.txt'))
-        buildCmds.add(Command('! grep -e "warning:" -e "Warning:" -e "error:" -e "style:" err_log.txt'))
+    if 'build' in checks:
+        buildCmds.add(Command(make_command))
 
     if 'install' in checks:
         install_command = f'cmake --install .'
         PropertyPrint('CMake install command', install_command)()
         buildCmds.add(HeaderPrint('Installing'))
         buildCmds.add(Command(install_command))
+
+    if 'iwyu' in checks:
+        PropertyPrint('Running iwyu', yesno(True))()
+        flags = param('INPUT_IWYUFLAGS', '')
+        buildCmds.add(Command(f'iwyu_tool -p . -- {flags} | tee iwyu_results.txt'))
+        buildCmds.add(Command('! grep -e "- #include" iwyu_results.txt'))
+
+    if 'cppcheck' in checks:
+        PropertyPrint('Running cppcheck', yesno(True))()
+        flags = param('INPUT_CPPCHECKFLAGS', '--enable=style,performance,portability')
+        flags += " --template='CPPCHECK_REPORT: {file}:{line},{severity},{id},{message}'"
+        buildCmds.add(Command(f'cppcheck --project=compile_commands.json {flags} 2>&1 | tee cppcheck_results.txt'))
+        buildCmds.add(Command('! grep -e "CPPCHECK_REPORT:" cppcheck_results.txt'))
+
+    if 'clang-tidy' in checks:
+        PropertyPrint('Running cppcheck', yesno(True))()
+        flags = param('INPUT_CLANGTIDYFLAGS', '')
+        buildCmds.add(Command(f'[ -f "{srcDir}/.clang-tidy" ] && cp --verbose "{srcDir}/.clang-tidy" {buildDir}'))
+        buildCmds.add(Command(f'/usr/lib/llvm-10/share/clang/run-clang-tidy.py -p . {flags}'))
 
     # Generate a test command to be used later
     ctest_flags = param('INPUT_CTESTFLAGS', '')
@@ -327,7 +328,7 @@ def configure_make_build(compilerVer, envSetCmd, hasConan):
     make_cc_flags += get_santizier_flags()
 
     # Add the C and C++ flags
-    make_params = ''
+    make_params = param('INPUT_MAKEFLAGS', '')
     cflags = param('INPUT_CFLAGS', '') + ' ' + make_cc_flags
     if cflags:
         make_params += f' CFLAGS="{cflags}"'
@@ -356,7 +357,7 @@ def auto_build_phase():
     global checks
     global auto_test_cmd
 
-    if 'build' not in checks:
+    if 'build' not in checks and 'clang-tidy' not in checks and 'cppcheck' not in checks and 'iwyu' not in checks:
         return
 
     HeaderPrint('Auto-determining build commands')()
@@ -405,7 +406,10 @@ def auto_test_phase():
                 toRun.add(Command(f'cp lcov.info {srcDir}/'))
 
     if 'clang-format' in checks:
-        toRun.add(Command(f'find "{srcDir}" \\( -name "*.[ch]" -o -name "*.cc" -o -name "*.cpp" -o -name "*.hpp" \\) -exec clang-format --Werror --dry-run {{}} +'))
+        dirs = param('INPUT_CLANGFORMATDIRS', '.').split()
+        dirs = map(lambda d: f'"{srcDir}/{d}"', dirs)
+        dirsStr = ' '.join(dirs)
+        toRun.add(Command(f'find {dirsStr} \\( -name "*.[ch]" -o -name "*.cc" -o -name "*.cpp" -o -name "*.hpp" \\) -exec clang-format --Werror --dry-run {{}} +'))
 
     # Run the test commands
     toRun()
@@ -451,7 +455,7 @@ def get_checks():
     # Do we need to add extra checks?
     extra_checks = []
     if 'build' not in checks:
-        needs_build = ['install', 'test', 'clang-tidy', 'cppcheck', 'iwyu']
+        needs_build = ['install', 'test', 'warnings', 'coverage=codecov', 'coverage=lcov']
         for c in checks:
             if c in needs_build or c.startswith('sanitize='):
                 extra_checks.append('build')

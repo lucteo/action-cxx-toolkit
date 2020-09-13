@@ -1,11 +1,11 @@
 ---
 Checks: "\
-bugprone-,\
-cppcoreguidelines-,\
-clang-analyzer-,\
-modernize-,\
-performance-,\
-portability-,\
-readability-"
-WarningsAsErrors: True
+bugprone-*,\
+cppcoreguidelines-*,\
+clang-analyzer-*,\
+modernize-*,\
+performance-*,\
+portability-*,\
+readability-*,\"
+WarningsAsErrors: "*"
 

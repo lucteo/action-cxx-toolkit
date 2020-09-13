@@ -45,7 +45,19 @@ inputs:
     description: 'The flags to be passed to ctest (if using cmake/ctest)'
     default: ''
   makeflags:
-    description: 'The flags to be passed to make (if using plain make)'
+    description: 'The flags to be passed to make (both for plain make or for build part of cmake)'
+    default: ''
+  iwyuflags:
+    description: 'Extra flags to be passed to iwyu'
+    default: ''
+  cppcheckflags:
+    description: 'Extra flags to be passed to cppcheck'
+    default: ''
+  clangtidyflags:
+    description: 'Extra flags to be passed to clang-tidy'
+    default: ''
+  clangformatdirs:
+    description: 'The directories (relative to build dir) where to run clang-format'
     default: ''
   prebuild_command:
     description: 'Command to be run before building starts'

@@ -41,9 +41,6 @@ The CFLAGS to be passed to the compilation. Typically not used.
 ### `cxxflags`
 The CXXFLAGS to be passed to the compilation. Typically not used.
 
-### `makeflags`
-The MAKEFLAGS to be passed to the compilation. Typically not used.
-
 ### `conanflags`
 Extra flags to be passed to `conan`; used only when conan is used.
 
@@ -54,7 +51,19 @@ Extra flags to be passed to `cmake`; used only when cmake build is used.
 Extra flags to be passed to `ctest`; used only when cmake build is used.
 
 ### `makeflags`
-The MAKEFLAGS to be passed to the compilation; used only when we use make builds. Typically not used.
+Flags to be passed when building the software; applies both to plain make projects and cmake builds.
+
+### `iwyuflags`
+Extra flags to be passed to iwyu.
+
+### `cppcheckflags`
+Extra flags to be passed to cppcheck.
+
+### `clangtidyflags`
+Extra flags to be passed to clang-tidy.
+
+### `clangformatdirs`
+The directories (relative to build dir) where to run clang-format.
 
 ### `prebuild_command`
 Command to be run before building starts. Can be useful to run any commands that prepare the compilation.
