@@ -400,8 +400,7 @@ def auto_test_phase():
             toRun.add(HeaderPrint('Gathering test coverage info'))
 
             if 'coverage=codecov' in checks:
-                toRun.add(Command(f'if [ -f "{srcDir}/codecov.yml" ]; then cp --verbose "{srcDir}/codecov.yml" ./; fi'))
-                toRun.add(Command('bash -c "bash <(curl -s https://codecov.io/bash)"'))
+                toRun.add(Command(f'bash -c "bash <(curl -s https://codecov.io/bash) -R {srcDir}"'))
             if 'coverage=lcov' in checks:
                 toRun.add(Command('lcov -c -d . -o lcov.info'))
                 toRun.add(Command(f'cp lcov.info {srcDir}/'))
@@ -469,7 +468,7 @@ def get_checks():
                 break
     if 'coverage=codecov' in checks:
         if not param('GITHUB_SHA'):
-            error('Environment not properly set to run codecov. See https://docs.codecov.io/docs/testing-with-docker')
+            warning('Could not find GITHUB_SHA environment variable. Is the environment set correctly? (expected env vars: GITHUB_ACTION, GITHUB_REF, GITHUB_REPOSITORY, GITHUB_HEAD_REF, GITHUB_SHA, GITHUB_RUN_ID)')
     if extra_checks:
         PropertyPrint('Adding implicit checks', extra_checks)()
         checks += extra_checks

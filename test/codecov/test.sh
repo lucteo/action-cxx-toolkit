@@ -7,11 +7,8 @@ realpath() {
 }
 CURDIR=$(realpath $(dirname "$0"))
 
-# Need some environment for codecov
-ci_env='-e GITHUB_SHA=1234567890'
-
 docker run $ci_env --rm -it --workdir /github/workspace -v "${CURDIR}":/github/workspace \
-    -e INPUT_CHECKS='coverage=codecov' $ci_env \
+    -e INPUT_CHECKS='coverage=codecov' \
     action-cxx-toolkit
 status=$?
 
