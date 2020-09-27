@@ -8,16 +8,15 @@ realpath() {
 CURDIR=$(realpath $(dirname "$0"))
 
 # Need some environment for codecov
-# ci_env=`bash <(curl -s https://codecov.io/env)`
-ci_env=''
+ci_env='-e GITHUB_SHA=1234567890'
 
 docker run $ci_env --rm -it --workdir /github/workspace -v "${CURDIR}":/github/workspace \
     -e INPUT_CHECKS='coverage=codecov' $ci_env \
     action-cxx-toolkit
 status=$?
 
-# Check if the test succeeded
-if [ $status -ne 0 ]; then
+# Check if the test succeeded -- expect failure
+if [ $status -eq 0 ]; then
     echo
     echo "OK"
     echo

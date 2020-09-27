@@ -302,7 +302,7 @@ def configure_cmake_build(compilerVer, envSetCmd, hasConan):
     if 'clang-tidy' in checks:
         PropertyPrint('Running cppcheck', yesno(True))()
         flags = param('INPUT_CLANGTIDYFLAGS', '')
-        buildCmds.add(Command(f'[ -f "{srcDir}/.clang-tidy" ] && cp --verbose "{srcDir}/.clang-tidy" {buildDir}'))
+        buildCmds.add(Command(f'if [ -f "{srcDir}/.clang-tidy" ]; then cp --verbose "{srcDir}/.clang-tidy" {buildDir}; fi'))
         buildCmds.add(Command(f'/usr/lib/llvm-10/share/clang/run-clang-tidy.py -p . {flags}'))
 
     # Generate a test command to be used later
@@ -400,6 +400,7 @@ def auto_test_phase():
             toRun.add(HeaderPrint('Gathering test coverage info'))
 
             if 'coverage=codecov' in checks:
+                toRun.add(Command(f'if [ -f "{srcDir}/codecov.yml" ]; then cp --verbose "{srcDir}/codecov.yml" ./; fi'))
                 toRun.add(Command('bash -c "bash <(curl -s https://codecov.io/bash)"'))
             if 'coverage=lcov' in checks:
                 toRun.add(Command('lcov -c -d . -o lcov.info'))
@@ -467,7 +468,7 @@ def get_checks():
                 extra_checks.append('test')
                 break
     if 'coverage=codecov' in checks:
-        if not param('VCS_COMMIT_ID'):
+        if not param('GITHUB_SHA'):
             error('Environment not properly set to run codecov. See https://docs.codecov.io/docs/testing-with-docker')
     if extra_checks:
         PropertyPrint('Adding implicit checks', extra_checks)()
