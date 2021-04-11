@@ -28,6 +28,9 @@ Ubuntu packges to install before building the software. May not be needed.
 ### `directory`
 The directory to start building from. If not specified, the build will be started from the repo main folder. Typically not used.
 
+### `builddir`
+The directory containing the build artifacts. Used for CMake builds. Default is '/tmp/build'.
+
 ### `cc`
 The C compiler to use. Based on this parameter the corresponding C++ compiler is also selected.
 

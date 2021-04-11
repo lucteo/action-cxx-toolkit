@@ -8,6 +8,7 @@ from dataclasses import dataclass
 #   INPUT_CHECKS
 #   INPUT_DEPENDENCIES
 #   INPUT_DIRECTORY
+#   INPUT_BUILDDIR
 #   INPUT_CC
 #   INPUT_CFLAGS
 #   INPUT_CXXFLAGS
@@ -229,11 +230,11 @@ def configure_cmake_build(compilerVer, envSetCmd, hasConan):
 
     # Setup build and install directories
     srcDir = os.getcwd()
-    buildDir = '/tmp/build'
+    buildDir = param('INPUT_BUILDDIR', '/tmp/build')
     installDir = '/tmp/install'
     PropertyPrint('Build directory', buildDir)()
     PropertyPrint('Install directory', installDir)()
-    buildCmds.add(Command(f'mkdir {buildDir}'))
+    buildCmds.add(Command(f'mkdir -p {buildDir}'))
     buildCmds.add(Command(f'mkdir {installDir}'))
     buildCmds.add(ChDir(buildDir))
 
@@ -300,7 +301,7 @@ def configure_cmake_build(compilerVer, envSetCmd, hasConan):
         buildCmds.add(Command('! grep -e "CPPCHECK_REPORT:" cppcheck_results.txt'))
 
     if 'clang-tidy' in checks:
-        PropertyPrint('Running cppcheck', yesno(True))()
+        PropertyPrint('Running clang-tidy', yesno(True))()
         flags = param('INPUT_CLANGTIDYFLAGS', '')
         buildCmds.add(Command(f'if [ -f "{srcDir}/.clang-tidy" ]; then cp --verbose "{srcDir}/.clang-tidy" {buildDir}; fi'))
         buildCmds.add(Command(f'/usr/lib/llvm-10/share/clang/run-clang-tidy.py -p . {flags}'))
