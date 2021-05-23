@@ -23,10 +23,10 @@ RUN set -xe; \
         # GCC compilers
         g++-7 g++-8 g++-9 g++-10 g++-11 \
         # Clang compilers
-        clang-7 clang-8 clang-9 clang-10 clang-11 clang-12 \
+        clang-7 clang-8 clang-9 clang-10 clang-11 \
         # Clang tools
-        clang-tidy-7 clang-tidy-8 clang-tidy-9 clang-tidy-10 clang-tidy-11 clang-tidy-12 \
-        clang-format-7 clang-format-8 clang-format-9 clang-format-10 clang-format-11 clang-format-12 \
+        clang-tidy-7 clang-tidy-8 clang-tidy-9 clang-tidy-10 clang-tidy-11 \
+        clang-format-7 clang-format-8 clang-format-9 clang-format-10 clang-format-11 \
         # Other tools needed
         curl git cppcheck iwyu lcov \
         ; \
