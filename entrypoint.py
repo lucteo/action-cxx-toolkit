@@ -362,7 +362,7 @@ def auto_build_phase():
         return
 
     HeaderPrint('Auto-determining build commands')()
-    hasConan = os.path.isfile('conanfile.txt')
+    hasConan = os.path.isfile('conanfile.txt') or os.path.isfile('conanfile.py')
     hasCmake = os.path.isfile('CMakeLists.txt')
     hasMake = os.path.isfile('Makefile')
     PropertyPrint('Has Conan', yesno(hasConan))()
