@@ -141,16 +141,22 @@ def configure_compiler_options():
         Returns a pair between compiler+version and the command to set proper environment.
     '''
     compilerVer = param('INPUT_CC', 'gcc')
-    compilers_map = {'gcc': 'g++',
+    compilers_map = {
+        'gcc': 'g++',
         'gcc-7': 'g++-7',
         'gcc-8': 'g++-8',
         'gcc-9': 'g++-9',
         'gcc-10': 'g++-10',
+        'gcc-11': 'g++-11',
         'clang': 'clang++',
         'clang-7': 'clang++-7',
         'clang-8': 'clang++-8',
         'clang-9': 'clang++-9',
-        'clang-10': 'clang++-10'}
+        'clang-10': 'clang++-10',
+        'clang-11': 'clang++-11',
+        'clang-12': 'clang++-12',
+        'clang-13': 'clang++-13',
+    }
     if compilerVer not in compilers_map.keys():
         error(f'Invalid compiler supplied: {compilerVer}')
     cc = f'/usr/bin/{compilerVer}'
@@ -167,16 +173,22 @@ def configure_compiler_options():
     # Update the alternatives, to ensure we are pointing to the right version
     # Needed mostly for the clang tools
     if compilerVer != 'gcc' and compilerVer != 'clang':
-        base_compilers_map = {'gcc': 'gcc',
+        base_compilers_map = {
+            'gcc': 'gcc',
             'gcc-7': 'gcc',
             'gcc-8': 'gcc',
             'gcc-9': 'gcc',
             'gcc-10': 'gcc',
+            'gcc-11': 'gcc',
             'clang': 'clang',
             'clang-7': 'clang',
             'clang-8': 'clang',
             'clang-9': 'clang',
-            'clang-10': 'clang'}
+            'clang-10': 'clang',
+            'clang-11': 'clang',
+            'clang-12': 'clang',
+            'clang-13': 'clang',
+        }
         baseComp = base_compilers_map[compilerVer]
         Command(f'update-alternatives --set {baseComp} /usr/bin/{compilerVer}')()
 

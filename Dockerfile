@@ -13,7 +13,7 @@ RUN set -xe; \
     apt-add-repository -y -n 'https://apt.kitware.com/ubuntu/'; \
     apt-add-repository -y -n 'ppa:ubuntu-toolchain-r/test'; \
     wget -qO - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -; \
-    apt-add-repository -y -n "deb http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs)-10 main"; \
+    apt-add-repository -y -n "deb http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs)-13 main"; \
     apt-get -y update; \
     apt-get -y install --no-install-recommends \
         # build common
@@ -23,10 +23,10 @@ RUN set -xe; \
         # GCC compilers
         g++-7 g++-8 g++-9 g++-10 g++-11 \
         # Clang compilers
-        clang-7 clang-8 clang-9 clang-10 clang-11 \
+        clang-7 clang-8 clang-9 clang-10 clang-11 clang-12 clang-13 \
         # Clang tools
-        clang-tidy-7 clang-tidy-8 clang-tidy-9 clang-tidy-10 clang-tidy-11 \
-        clang-format-7 clang-format-8 clang-format-9 clang-format-10 clang-format-11 \
+        clang-tidy-7 clang-tidy-8 clang-tidy-9 clang-tidy-10 clang-tidy-11 clang-tidy-12 clang-tidy-13 \
+        clang-format-7 clang-format-8 clang-format-9 clang-format-10 clang-format-11 clang-format-12 clang-format-13 \
         # Other tools needed
         curl git cppcheck iwyu lcov \
         ; \
@@ -37,10 +37,14 @@ RUN python3 -m pip install conan
 
 # Setup compiler alternatives
 RUN set -xe; \
+    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 110 --slave /usr/bin/g++ g++ /usr/bin/g++-11 --slave /usr/bin/gcov gcov /usr/bin/gcov-11 ; \
     update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 --slave /usr/bin/g++ g++ /usr/bin/g++-10 --slave /usr/bin/gcov gcov /usr/bin/gcov-10 ; \
     update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 90 --slave /usr/bin/g++ g++ /usr/bin/g++-9 --slave /usr/bin/gcov gcov /usr/bin/gcov-9 ; \
     update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 80 --slave /usr/bin/g++ g++ /usr/bin/g++-8 --slave /usr/bin/gcov gcov /usr/bin/gcov-8 ; \
     update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 70 --slave /usr/bin/g++ g++ /usr/bin/g++-7 --slave /usr/bin/gcov gcov /usr/bin/gcov-7 ; \
+    update-alternatives --install /usr/bin/clang clang /usr/bin/clang-13 130 --slave /usr/bin/clang++ clang++ /usr/bin/clang++-13 --slave /usr/bin/clang-format clang-format /usr/bin/clang-format-13 --slave /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-13 ; \
+    update-alternatives --install /usr/bin/clang clang /usr/bin/clang-12 120 --slave /usr/bin/clang++ clang++ /usr/bin/clang++-12 --slave /usr/bin/clang-format clang-format /usr/bin/clang-format-12 --slave /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-12 ; \
+    update-alternatives --install /usr/bin/clang clang /usr/bin/clang-11 110 --slave /usr/bin/clang++ clang++ /usr/bin/clang++-11 --slave /usr/bin/clang-format clang-format /usr/bin/clang-format-11 --slave /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-11 ; \
     update-alternatives --install /usr/bin/clang clang /usr/bin/clang-10 100 --slave /usr/bin/clang++ clang++ /usr/bin/clang++-10 --slave /usr/bin/clang-format clang-format /usr/bin/clang-format-10 --slave /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-10 ; \
     update-alternatives --install /usr/bin/clang clang /usr/bin/clang-9 90 --slave /usr/bin/clang++ clang++ /usr/bin/clang++-9 --slave /usr/bin/clang-format clang-format /usr/bin/clang-format-9 --slave /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-9 ; \
     update-alternatives --install /usr/bin/clang clang /usr/bin/clang-8 80 --slave /usr/bin/clang++ clang++ /usr/bin/clang++-8 --slave /usr/bin/clang-format clang-format /usr/bin/clang-format-8 --slave /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-8 ; \
