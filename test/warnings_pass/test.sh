@@ -10,7 +10,7 @@ CURDIR=$(realpath $(dirname "$0"))
 docker run --rm -it --workdir /github/workspace -v "${CURDIR}":/github/workspace \
     -e INPUT_CHECKS='warnings' \
     -e INPUT_CC='gcc' \
-    action-cxx-toolkit
+    lucteo/action-cxx-toolkit.gcc11
 status=$?
 
 # Check if the test succeeded

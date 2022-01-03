@@ -13,7 +13,7 @@ rm -f ${CURDIR}/test_app
 docker run --rm -it --workdir /github/workspace -v "${CURDIR}":/github/workspace \
     -e INPUT_CHECKS='sanitize=address sanitize=undefined warnings' \
     -e INPUT_CC='clang' \
-    action-cxx-toolkit
+    lucteo/action-cxx-toolkit.main
 status=$?
 
 rm -f ${CURDIR}/test_app

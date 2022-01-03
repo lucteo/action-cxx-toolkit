@@ -316,7 +316,7 @@ def configure_cmake_build(compilerVer, envSetCmd, hasConan):
         PropertyPrint('Running clang-tidy', yesno(True))()
         flags = param('INPUT_CLANGTIDYFLAGS', '')
         buildCmds.add(Command(f'if [ -f "{srcDir}/.clang-tidy" ]; then cp --verbose "{srcDir}/.clang-tidy" {buildDir}; fi'))
-        buildCmds.add(Command(f'/usr/lib/llvm-10/share/clang/run-clang-tidy.py -p . {flags}'))
+        buildCmds.add(Command(f'/usr/lib/llvm-13/bin/run-clang-tidy -p . {flags}'))
 
     # Generate a test command to be used later
     ctest_flags = param('INPUT_CTESTFLAGS', '')

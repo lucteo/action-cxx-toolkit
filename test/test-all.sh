@@ -2,7 +2,7 @@
 
 # Purpose: run all the tests in our test battery
 
-set -e
+set -ex
 
 realpath() {
     [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"

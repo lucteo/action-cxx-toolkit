@@ -9,7 +9,7 @@ CURDIR=$(realpath $(dirname "$0"))
 
 docker run $ci_env --rm -it --workdir /github/workspace -v "${CURDIR}":/github/workspace \
     -e INPUT_CHECKS='coverage=codecov' \
-    action-cxx-toolkit
+    lucteo/action-cxx-toolkit.main
 status=$?
 
 # Check if the test succeeded -- expect failure

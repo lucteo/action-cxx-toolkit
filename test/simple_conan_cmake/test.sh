@@ -14,7 +14,7 @@ docker run --rm -it --workdir /github/workspace -v "${CURDIR}":/github/workspace
     -e INPUT_CC='clang-9' \
     -e INPUT_CHECKS='install test' \
     -e INPUT_POSTBUILD_COMMAND='cp /tmp/build/test_app /github/workspace/' \
-    action-cxx-toolkit
+    lucteo/action-cxx-toolkit.clang9
 
 # Check if the test succeeded
 if [ -f ${CURDIR}/test_app ]; then

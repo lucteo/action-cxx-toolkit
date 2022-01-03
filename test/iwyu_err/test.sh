@@ -9,7 +9,8 @@ CURDIR=$(realpath $(dirname "$0"))
 
 docker run --rm -it --workdir /github/workspace -v "${CURDIR}":/github/workspace \
     -e INPUT_CHECKS='iwyu' \
-    action-cxx-toolkit
+    -e INPUT_CC='gcc-11' \
+    lucteo/action-cxx-toolkit.main
 status=$?
 
 # Check if the test succeeded
