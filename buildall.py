@@ -2,7 +2,7 @@
 
 import subprocess
 
-clang_versions = list(range(7, 13 + 1))
+clang_versions = list(range(7, 15 + 1))
 gcc_versions = list(range(7, 11 + 1))
 
 prologue = """
@@ -43,10 +43,6 @@ COPY entrypoint.py /usr/local/bin/entrypoint.py
 ENTRYPOINT ["/usr/local/bin/entrypoint.py"]
 """
 
-clang_preinstall = """wget -qO - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -; \\
-    apt-add-repository -y -n "deb http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs)-13 main"; \\
-"""
-
 
 def _gen_alternatives(alts):
     """Generate alternatives strings; takes in a list of pairs (alias-name, actual-name)"""
@@ -69,7 +65,10 @@ def _get_compiler_text(compilers, extra_packages=""):
 
     if "clang" in compilers:
         v = compilers["clang"]
-        pre_install = clang_preinstall
+        llvm_dev_ver = v if v > 13 else 13
+        pre_install = f"""wget -qO - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -; \\
+    apt-add-repository -y -n "deb http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs)-{llvm_dev_ver} main"; \\
+"""
         packages = f"clang++-{v} libc++-{v}-dev libc++abi-{v}-dev clang-tidy-{v} clang-format-{v}"
         alts = [
             ("clang", f"clang-{v}"),
