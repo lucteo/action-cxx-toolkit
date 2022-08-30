@@ -98,7 +98,7 @@ def _get_compiler_text(compilers, extra_packages=""):
     return f"""
 # Clang and tools
 RUN set -xe; \\
-    {pre_install}
+    {pre_install} \\
     apt-get -y update; \\
     apt-get -y install --no-install-recommends \\
         {packages} \\
