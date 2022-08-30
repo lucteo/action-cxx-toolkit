@@ -9,6 +9,7 @@ prologue = """
 FROM ubuntu:20.04
 
 ARG DEBIAN_FRONTEND=noninteractive
+ARG CMAKE_VERSION=3.24.1-0kitware1ubuntu20.04.1
 """
 
 install_base = """
@@ -25,7 +26,9 @@ RUN set -xe; \\
     apt-get -y update; \\
     # Install generic build tools & python
     apt-get -y install --no-install-recommends \\
-        cmake pkg-config make \\
+        pkg-config make \\
+        cmake=$CMAKE_VERSION \\
+        cmake-data=$CMAKE_VERSION \\
         python3 python3-pip python3-setuptools \\
         ; \\
     # Cleanup apt packages
