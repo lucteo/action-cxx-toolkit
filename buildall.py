@@ -118,12 +118,6 @@ def generate_docker(filename, compilers, extra_packages=""):
         f.write(epilogue)
 
 
-def build_docker_image(docker_suffix):
-    print(f"Building image lucteo/action-cxx-toolkit.{docker_suffix}")
-    cmd = f"docker build . -f Dockerfile.{docker_suffix} -t lucteo/action-cxx-toolkit.{docker_suffix}"
-    subprocess.call(cmd, shell=True)
-
-
 def main():
     # Generate the main docker file
     generate_docker(
@@ -138,12 +132,36 @@ def main():
     for v in gcc_versions:
         generate_docker(f"Dockerfile.gcc{v}", {"gcc": v})
 
-    # Build the images
-    build_docker_image("main")
-    for v in clang_versions:
-        build_docker_image(f"clang{v}")
-    for v in gcc_versions:
-        build_docker_image(f"gcc{v}")
+    with open("docker-compose.yml", "w") as f:
+        f.write("services:\n")
+        f.write("""
+  main:
+    image: lucteo/action-cxx-toolkit.main
+    build:
+      dockerfile: Dockerfile.main
+""")
+        for v in gcc_versions:
+            f.write(f"""
+  gcc{v}:
+    image: lucteo/action-cxx-toolkit.gcc{v}
+    build:
+      dockerfile: Dockerfile.gcc{v}
+""")
+        for v in clang_versions:
+            f.write(f"""
+  clang{v}:
+    image: lucteo/action-cxx-toolkit.clang{v}
+    build:
+      dockerfile: Dockerfile.clang{v}
+""")
+
+    cmd=f"DOCKER_BUILDKIT=1 docker-compose build --force-rm --parallel main " + " ".join([f"gcc{x}" for x in gcc_versions])
+    print(cmd)
+    subprocess.call(cmd, shell=True)
+
+    cmd=f"DOCKER_BUILDKIT=1 docker-compose build --force-rm --parallel " + " ".join([f"clang{x}" for x in clang_versions])
+    print(cmd)
+    subprocess.call(cmd, shell=True)
 
 
 if __name__ == "__main__":
