@@ -8,7 +8,7 @@ gcc_versions = list(range(7, 11 + 1))
 prologue = """
 FROM ubuntu:20.04
 
-ENV DEBIAN_FRONTEND=noninteractive
+ARG DEBIAN_FRONTEND=noninteractive
 """
 
 install_base = """
