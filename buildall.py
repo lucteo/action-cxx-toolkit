@@ -138,6 +138,7 @@ def main():
   main:
     image: lucteo/action-cxx-toolkit.main
     build:
+      context: .
       dockerfile: Dockerfile.main
 """)
         for v in gcc_versions:
@@ -145,6 +146,7 @@ def main():
   gcc{v}:
     image: lucteo/action-cxx-toolkit.gcc{v}
     build:
+      context: .
       dockerfile: Dockerfile.gcc{v}
 """)
         for v in clang_versions:
@@ -152,6 +154,7 @@ def main():
   clang{v}:
     image: lucteo/action-cxx-toolkit.clang{v}
     build:
+      context: .
       dockerfile: Dockerfile.clang{v}
 """)
 
