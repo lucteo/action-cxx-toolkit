@@ -2,13 +2,14 @@
 
 import subprocess
 
-clang_versions = list(range(7, 13 + 1))
+clang_versions = list(range(7, 15 + 1))
 gcc_versions = list(range(7, 11 + 1))
 
 prologue = """
 FROM ubuntu:20.04
 
-ENV DEBIAN_FRONTEND=noninteractive
+ARG DEBIAN_FRONTEND=noninteractive
+ARG CMAKE_VERSION=3.24.1-0kitware1ubuntu20.04.1
 """
 
 install_base = """
@@ -25,7 +26,9 @@ RUN set -xe; \\
     apt-get -y update; \\
     # Install generic build tools & python
     apt-get -y install --no-install-recommends \\
-        cmake pkg-config make \\
+        pkg-config make \\
+        cmake=$CMAKE_VERSION \\
+        cmake-data=$CMAKE_VERSION \\
         python3 python3-pip python3-setuptools \\
         ; \\
     # Cleanup apt packages
@@ -38,10 +41,6 @@ epilogue = """
 # The entry point
 COPY entrypoint.py /usr/local/bin/entrypoint.py
 ENTRYPOINT ["/usr/local/bin/entrypoint.py"]
-"""
-
-clang_preinstall = """wget -qO - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -; \\
-    apt-add-repository -y -n "deb http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs)-13 main"; \\
 """
 
 
@@ -66,7 +65,10 @@ def _get_compiler_text(compilers, extra_packages=""):
 
     if "clang" in compilers:
         v = compilers["clang"]
-        pre_install = clang_preinstall
+        llvm_dev_ver = v if v > 13 else 13
+        pre_install = f"""wget -qO - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -; \\
+    apt-add-repository -y -n "deb http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs)-{llvm_dev_ver} main"; \\
+"""
         packages = f"clang++-{v} libc++-{v}-dev libc++abi-{v}-dev clang-tidy-{v} clang-format-{v}"
         alts = [
             ("clang", f"clang-{v}"),
@@ -98,7 +100,7 @@ def _get_compiler_text(compilers, extra_packages=""):
     return f"""
 # Clang and tools
 RUN set -xe; \\
-    {pre_install}
+    {pre_install} \\
     apt-get -y update; \\
     apt-get -y install --no-install-recommends \\
         {packages} \\
@@ -116,12 +118,6 @@ def generate_docker(filename, compilers, extra_packages=""):
         f.write(epilogue)
 
 
-def build_docker_image(docker_suffix):
-    print(f"Building image lucteo/action-cxx-toolkit.{docker_suffix}")
-    cmd = f"docker build . -f Dockerfile.{docker_suffix} -t lucteo/action-cxx-toolkit.{docker_suffix}"
-    subprocess.call(cmd, shell=True)
-
-
 def main():
     # Generate the main docker file
     generate_docker(
@@ -136,12 +132,39 @@ def main():
     for v in gcc_versions:
         generate_docker(f"Dockerfile.gcc{v}", {"gcc": v})
 
-    # Build the images
-    build_docker_image("main")
-    for v in clang_versions:
-        build_docker_image(f"clang{v}")
-    for v in gcc_versions:
-        build_docker_image(f"gcc{v}")
+    with open("docker-compose.yml", "w") as f:
+        f.write("services:\n")
+        f.write("""
+  main:
+    image: lucteo/action-cxx-toolkit.main
+    build:
+      context: .
+      dockerfile: Dockerfile.main
+""")
+        for v in gcc_versions:
+            f.write(f"""
+  gcc{v}:
+    image: lucteo/action-cxx-toolkit.gcc{v}
+    build:
+      context: .
+      dockerfile: Dockerfile.gcc{v}
+""")
+        for v in clang_versions:
+            f.write(f"""
+  clang{v}:
+    image: lucteo/action-cxx-toolkit.clang{v}
+    build:
+      context: .
+      dockerfile: Dockerfile.clang{v}
+""")
+
+    cmd=f"DOCKER_BUILDKIT=1 docker-compose build --force-rm --parallel main " + " ".join([f"gcc{x}" for x in gcc_versions])
+    print(cmd)
+    subprocess.call(cmd, shell=True)
+
+    cmd=f"DOCKER_BUILDKIT=1 docker-compose build --force-rm --parallel " + " ".join([f"clang{x}" for x in clang_versions])
+    print(cmd)
+    subprocess.call(cmd, shell=True)
 
 
 if __name__ == "__main__":
