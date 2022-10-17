@@ -4,9 +4,12 @@ import subprocess
 
 clang_versions = list(range(7, 15 + 1))
 gcc_versions = list(range(7, 11 + 1))
+nvcc_versions = ["11.7.1", "11.8.0"]
+nvhpc_versions = [
+    { "hpc_ver": "22.7", "cuda_ver": "11.7"}
+]
 
 prologue = """
-FROM ubuntu:20.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG CMAKE_VERSION=3.24.1-0kitware1ubuntu20.04.1
@@ -110,8 +113,9 @@ RUN set -xe; \\
 """
 
 
-def generate_docker(filename, compilers, extra_packages=""):
+def generate_docker(filename, base_image, compilers, extra_packages=""):
     with open(filename, "w") as f:
+        f.write(f"FROM {base_image}")
         f.write(prologue)
         f.write(install_base)
         f.write(_get_compiler_text(compilers, extra_packages))
@@ -122,15 +126,32 @@ def main():
     # Generate the main docker file
     generate_docker(
         "Dockerfile.main",
+        "ubuntu:20.04",
         {"clang": clang_versions[-1], "gcc": gcc_versions[-1]},
         "curl git cppcheck iwyu lcov",
     )
-    # Generate the clang docker file
+    # Generate the clang docker files
     for v in clang_versions:
-        generate_docker(f"Dockerfile.clang{v}", {"clang": v})
-    # Generate the gcc docker file
+        generate_docker(f"Dockerfile.clang{v}", "ubuntu:20.04", {"clang": v})
+    # Generate the gcc docker files
     for v in gcc_versions:
-        generate_docker(f"Dockerfile.gcc{v}", {"gcc": v})
+        generate_docker(f"Dockerfile.gcc{v}", "ubuntu:20.04", {"gcc": v})
+        # Generate gcc + CUDA dockerfiles
+        for cuda_ver in nvcc_versions:
+            generate_docker(
+                f"Dockerfile.gcc{v}-cuda{cuda_ver}",
+                f"nvidia/cuda:{cuda_ver}-devel-ubuntu20.04",
+                {"gcc": v}
+            )
+        # Generate gcc + NVHPC dockerfiles
+        for nvhpc_ver in nvhpc_versions:
+            hpc_ver = nvhpc_ver["hpc_ver"]
+            cuda_ver = nvhpc_ver["cuda_ver"]
+            generate_docker(
+                f"Dockerfile.gcc{v}-cuda{cuda_ver}-nvhpc{hpc_ver}",
+                f"nvcr.io/nvidia/nvhpc:{hpc_ver}-devel-cuda{cuda_ver}-ubuntu20.04",
+                {"gcc": v}
+            )
 
     with open("docker-compose.yml", "w") as f:
         f.write("services:\n")
@@ -141,14 +162,6 @@ def main():
       context: .
       dockerfile: Dockerfile.main
 """)
-        for v in gcc_versions:
-            f.write(f"""
-  gcc{v}:
-    image: lucteo/action-cxx-toolkit.gcc{v}
-    build:
-      context: .
-      dockerfile: Dockerfile.gcc{v}
-""")
         for v in clang_versions:
             f.write(f"""
   clang{v}:
@@ -157,12 +170,50 @@ def main():
       context: .
       dockerfile: Dockerfile.clang{v}
 """)
+        for v in gcc_versions:
+            f.write(f"""
+  gcc{v}:
+    image: lucteo/action-cxx-toolkit.gcc{v}
+    build:
+      context: .
+      dockerfile: Dockerfile.gcc{v}
+""")
+            for cuda_ver in nvcc_versions:
+                f.write(f"""
+  gcc{v}-cuda{cuda_ver}:
+    image: lucteo/action-cxx-toolkit.gcc{v}-cuda{cuda_ver}
+    build:
+      context: .
+      dockerfile: Dockerfile.gcc{v}-cuda{cuda_ver}
+""")
+            for nvhpc_ver in nvhpc_versions:
+                hpc_ver = nvhpc_ver["hpc_ver"]
+                cuda_ver = nvhpc_ver["cuda_ver"]
+                f.write(f"""
+  gcc{v}-cuda{cuda_ver}-nvhpc{hpc_ver}:
+    image: lucteo/action-cxx-toolkit.gcc{v}-cuda{cuda_ver}-nvhpc{hpc_ver}
+    build:
+      context: .
+      dockerfile: Dockerfile.gcc{v}-cuda{cuda_ver}-nvhpc{hpc_ver}
+""")
 
-    cmd=f"DOCKER_BUILDKIT=1 docker-compose build --force-rm --parallel main " + " ".join([f"gcc{x}" for x in gcc_versions])
+    cmd=f"DOCKER_BUILDKIT=1 docker-compose build --force-rm --parallel main " + \
+        " ".join([f"gcc{x}" for x in gcc_versions])
     print(cmd)
     subprocess.call(cmd, shell=True)
 
-    cmd=f"DOCKER_BUILDKIT=1 docker-compose build --force-rm --parallel " + " ".join([f"clang{x}" for x in clang_versions])
+    cmd=f"DOCKER_BUILDKIT=1 docker-compose build --force-rm --parallel " + \
+        " ".join([f"gcc{x}-cuda{y}" for x in gcc_versions for y in nvcc_versions])
+    print(cmd)
+    subprocess.call(cmd, shell=True)
+
+    cmd=f"DOCKER_BUILDKIT=1 docker-compose build --force-rm --parallel " + \
+        " ".join([f"gcc{x}-cuda{y['cuda_ver']}-nvhpc{y['hpc_ver']}" for x in gcc_versions for y in nvhpc_versions])
+    print(cmd)
+    subprocess.call(cmd, shell=True)
+
+    cmd=f"DOCKER_BUILDKIT=1 docker-compose build --force-rm --parallel " + \
+        " ".join([f"clang{x}" for x in clang_versions])
     print(cmd)
     subprocess.call(cmd, shell=True)
 
