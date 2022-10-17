@@ -51,7 +51,7 @@ def _gen_alternatives(alts):
     """Generate alternatives strings; takes in a list of pairs (alias-name, actual-name)"""
     res = ""
     for (alias, actual) in alts:
-        rule = f"/usr/bin/{alias} {alias} /usr/bin/{actual}"
+        rule = f"/usr/bin/{alias} {alias} {actual}"
         if not res:
             res = f"update-alternatives --install {rule} 100 "
         else:
@@ -74,16 +74,17 @@ def _get_compiler_text(compilers, extra_packages=""):
 """
         packages = f"clang++-{v} libc++-{v}-dev libc++abi-{v}-dev clang-tidy-{v} clang-format-{v}"
         alts = [
-            ("clang", f"clang-{v}"),
-            ("clang-format", f"clang-format-{v}"),
-            ("clang-tidy", f"clang-tidy-{v}"),
+            ("clang", f"/usr/bin/clang-{v}"),
+            ("clang-format", f"/usr/bin/clang-format-{v}"),
+            ("clang-tidy", f"/usr/bin/clang-tidy-{v}"),
+            ("run-clang-tidy", f"/usr/lib/llvm-{v}/bin/run-clang-tidy"),
         ]
         # Also add alias from gcc to clang
         if "gcc" not in compilers:
             alts.extend(
                 [
-                    ("gcc", f"clang-{v}"),
-                    ("g++", f"clang++-{v}"),
+                    ("gcc", f"/usr/bin/clang-{v}"),
+                    ("g++", f"/usr/bin/clang++-{v}"),
                 ]
             )
 
@@ -92,8 +93,8 @@ def _get_compiler_text(compilers, extra_packages=""):
         packages += f" g++-{v}"
         alts.extend(
             [
-                ("gcc", f"gcc-{v}"),
-                ("g++", f"g++-{v}"),
+                ("gcc", f"/usr/bin/gcc-{v}"),
+                ("g++", f"/usr/bin/g++-{v}"),
             ]
         )
 
