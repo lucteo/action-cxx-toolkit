@@ -15,6 +15,9 @@ from dataclasses import dataclass
 #   INPUT_CONANFLAGS
 #   INPUT_CMAKEFLAGS
 #   INPUT_CTESTFLAGS
+#   INPUT_IGNORE_CONAN
+#   INPUT_IGNORE_CMAKE
+#   INPUT_IGNORE_MAKE
 #   INPUT_MAKEFLAGS
 #   INPUT_IWYUFLAGS
 #   INPUT_CPPCHECKFLAGS
@@ -156,11 +159,17 @@ def configure_compiler_options():
         'clang-11': 'clang++-11',
         'clang-12': 'clang++-12',
         'clang-13': 'clang++-13',
+        'clang-14': 'clang++-14',
+        'clang-15': 'clang++-15',
+        'clang-16': 'clang++-16',
+        'nvcc': 'nvcc',
+        'nvc++': 'nvc++',
+        'mpicc': 'mpic++',
     }
     if compilerVer not in compilers_map.keys():
         error(f'Invalid compiler supplied: {compilerVer}')
-    cc = f'/usr/bin/{compilerVer}'
-    cxx = f'/usr/bin/{compilers_map[compilerVer]}'
+    cc = subprocess.check_output(f'which {compilerVer}', shell=True).decode("UTF-8").strip()
+    cxx = subprocess.check_output(f'which {compilers_map[compilerVer]}', shell=True).decode("UTF-8").strip()
     PropertyPrint('C Compiler to be used', cc)()
     Command(f'{cc} --version')()
     PropertyPrint('C++ Compiler to be used', cxx)()
@@ -172,7 +181,9 @@ def configure_compiler_options():
 
     # Update the alternatives, to ensure we are pointing to the right version
     # Needed mostly for the clang tools
-    if compilerVer != 'gcc' and compilerVer != 'clang':
+    if compilerVer != 'gcc' and compilerVer != 'clang' and (
+        'gcc' in compilerVer or 'clang' in compilerVer
+    ):
         base_compilers_map = {
             'gcc': 'gcc',
             'gcc-7': 'gcc',
@@ -188,6 +199,9 @@ def configure_compiler_options():
             'clang-11': 'clang',
             'clang-12': 'clang',
             'clang-13': 'clang',
+            'clang-14': 'clang',
+            'clang-15': 'clang',
+            'clang-16': 'clang',
         }
         baseComp = base_compilers_map[compilerVer]
         Command(f'update-alternatives --set {baseComp} /usr/bin/{compilerVer}')()
@@ -374,9 +388,9 @@ def auto_build_phase():
         return
 
     HeaderPrint('Auto-determining build commands')()
-    hasConan = os.path.isfile('conanfile.txt') or os.path.isfile('conanfile.py')
-    hasCmake = os.path.isfile('CMakeLists.txt')
-    hasMake = os.path.isfile('Makefile')
+    hasConan = (param('INPUT_IGNORE_CONAN', 'false') == 'false') and (os.path.isfile('conanfile.txt') or os.path.isfile('conanfile.py'))
+    hasCmake = (param('INPUT_IGNORE_CMAKE', 'false') == 'false') and os.path.isfile('CMakeLists.txt')
+    hasMake = (param('INPUT_IGNORE_MAKE', 'false') == 'false') and os.path.isfile('Makefile')
     PropertyPrint('Has Conan', yesno(hasConan))()
     PropertyPrint('Has Cmake', yesno(hasCmake))()
     PropertyPrint('Has Make', yesno(hasMake))()

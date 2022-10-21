@@ -6,7 +6,10 @@ clang_versions = list(range(7, 15 + 1))
 gcc_versions = list(range(7, 11 + 1))
 nvcc_versions = ["11.7.1", "11.8.0"]
 nvhpc_versions = [
-    { "hpc_ver": "22.7", "cuda_ver": "11.7"}
+    { "hpc_ver": "22.7", "cuda_ver": "11.7"},
+    { "hpc_ver": "22.7", "cuda_ver": "_multi"},
+    { "hpc_ver": "22.9", "cuda_ver": "11.7"},
+    { "hpc_ver": "22.9", "cuda_ver": "_multi"},
 ]
 
 prologue = """
