@@ -15,6 +15,9 @@ from dataclasses import dataclass
 #   INPUT_CONANFLAGS
 #   INPUT_CMAKEFLAGS
 #   INPUT_CTESTFLAGS
+#   INPUT_IGNORE_CONAN
+#   INPUT_IGNORE_CMAKE
+#   INPUT_IGNORE_MAKE
 #   INPUT_MAKEFLAGS
 #   INPUT_IWYUFLAGS
 #   INPUT_CPPCHECKFLAGS
@@ -374,9 +377,9 @@ def auto_build_phase():
         return
 
     HeaderPrint('Auto-determining build commands')()
-    hasConan = os.path.isfile('conanfile.txt') or os.path.isfile('conanfile.py')
-    hasCmake = os.path.isfile('CMakeLists.txt')
-    hasMake = os.path.isfile('Makefile')
+    hasConan = (param('INPUT_IGNORE_CONAN', 'false') == 'false') and (os.path.isfile('conanfile.txt') or os.path.isfile('conanfile.py'))
+    hasCmake = (param('INPUT_IGNORE_CMAKE', 'false') == 'false') and os.path.isfile('CMakeLists.txt')
+    hasMake = (param('INPUT_IGNORE_MAKE', 'false') == 'false') and os.path.isfile('Makefile')
     PropertyPrint('Has Conan', yesno(hasConan))()
     PropertyPrint('Has Cmake', yesno(hasCmake))()
     PropertyPrint('Has Make', yesno(hasMake))()
