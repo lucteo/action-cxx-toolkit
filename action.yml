@@ -35,6 +35,15 @@ inputs:
   cxxflags:
     description: 'The CXXFLAGS to be passed to the compilation'
     default: ''
+  ignore_conan:
+    description: "Don't run conan, even if a conanfile.{py,txt} is present in the source tree"
+    default: false
+  ignore_cmake:
+    description: "Don't run cmake, even if a CMakeList.txt is present in the source tree"
+    default: false
+  ignore_make:
+    description: "Don't run make, even if a Makefile is present in the source tree"
+    default: false
   conanflags:
     description: 'The flags to be passed to conan (if using conan)'
     default: ''

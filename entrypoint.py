@@ -19,6 +19,9 @@ from typing import Protocol
 #   INPUT_CONANFLAGS
 #   INPUT_CMAKEFLAGS
 #   INPUT_CTESTFLAGS
+#   INPUT_IGNORE_CONAN
+#   INPUT_IGNORE_CMAKE
+#   INPUT_IGNORE_MAKE
 #   INPUT_MAKEFLAGS
 #   INPUT_IWYUFLAGS
 #   INPUT_CPPCHECKFLAGS
@@ -354,9 +357,9 @@ def auto_build_phase():
     HeaderPrint('Auto-determining build commands')()
     conanfileDir = param('INPUT_CONANFILEEDIR', srcDir)
     makefileDir = param('INPUT_MAKEFILEDIR', srcDir) 
-    hasConan = os.path.isfile(f'{conanfileDir}/conanfile.txt') or os.path.isfile(f'{conanfileDir}/conanfile.py')
-    hasCmake = os.path.isfile(f'{makefileDir}/CMakeLists.txt')
-    hasMake = os.path.isfile(f'{makefileDir}/Makefile')
+    hasConan = (param('INPUT_IGNORE_CONAN', 'false') == 'false') and os.path.isfile(f'{conanfileDir}/conanfile.txt') or os.path.isfile(f'{conanfileDir}/conanfile.py')
+    hasCmake = (param('INPUT_IGNORE_CMAKE', 'false') == 'false') and os.path.isfile(f'{makefileDir}/CMakeLists.txt')
+    hasMake = (param('INPUT_IGNORE_MAKE', 'false') == 'false') and os.path.isfile(f'{makefileDir}/Makefile')
     PropertyPrint('Has Conan', yesno(hasConan))()
     PropertyPrint('Has Cmake', yesno(hasCmake))()
     PropertyPrint('Has Make', yesno(hasMake))()
