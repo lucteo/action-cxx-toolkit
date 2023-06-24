@@ -1,0 +1,30 @@
+
+FROM {{ base_image }}
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN set -xe; \
+    # Add repository to get clang from
+    wget -qO - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -; \
+    apt-add-repository -y -n "deb http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs)-{{ clang_version }} main"; \
+
+    apt-get -y update; \
+    apt-get -y install --no-install-recommends \
+        # Install clang & tools
+        clang++-{{ clang_version }} libc++-{{ clang_version }}-dev libc++abi-{{ clang_version }}-dev \
+        clang-tidy-{{ clang_version }} clang-format-{{ clang_version }} \
+        # Install GCC
+        g++-{{ gcc_version }} \
+        # Install other tools
+        curl git cppcheck iwyu lcov \
+    ; \
+    rm -rf /var/lib/apt/lists/*; \
+    update-alternatives --install /usr/bin/clang clang /usr/bin/clang-{{ clang_version }} 100  \
+        --slave /usr/bin/clang-format clang-format /usr/bin/clang-format-{{ clang_version }} \
+        --slave /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-{{ clang_version }} \
+        --slave /usr/bin/gcc gcc /usr/bin/gcc-{{ gcc_version }} \
+        --slave /usr/bin/g++ g++ /usr/bin/g++-{{ gcc_version }}
+
+# The entry point
+COPY entrypoint.py /usr/local/bin/entrypoint.py
+ENTRYPOINT ["/usr/local/bin/entrypoint.py"]
