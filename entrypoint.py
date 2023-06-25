@@ -9,6 +9,8 @@ from typing import Protocol
 #   INPUT_CHECKS
 #   INPUT_DEPENDENCIES
 #   INPUT_DIRECTORY
+#   INPUT_CONANFILEEDIR
+#   INPUT_MAKEFILEDIR
 #   INPUT_BUILDDIR
 #   INPUT_INSTALLDIR
 #   INPUT_CC
@@ -350,9 +352,11 @@ def auto_build_phase():
         return (None, None)
 
     HeaderPrint('Auto-determining build commands')()
-    hasConan = os.path.isfile('conanfile.txt') or os.path.isfile('conanfile.py')
-    hasCmake = os.path.isfile('CMakeLists.txt')
-    hasMake = os.path.isfile('Makefile')
+    conanfileDir = param('INPUT_CONANFILEEDIR', srcDir)
+    makefileDir = param('INPUT_MAKEFILEDIR', srcDir) 
+    hasConan = os.path.isfile(f'{conanfileDir}/conanfile.txt') or os.path.isfile(f'{conanfileDir}/conanfile.py')
+    hasCmake = os.path.isfile(f'{makefileDir}/CMakeLists.txt')
+    hasMake = os.path.isfile(f'{makefileDir}/Makefile')
     PropertyPrint('Has Conan', yesno(hasConan))()
     PropertyPrint('Has Cmake', yesno(hasCmake))()
     PropertyPrint('Has Make', yesno(hasMake))()
@@ -365,7 +369,7 @@ def auto_build_phase():
     if hasMake:
         Command(f'make --version')()
 
-    if not hasCmake and not hasMake and not hasConan:
+    if not hasCmake and not hasMake:
         error('Cannot autodetect build system. Provide the build command manually')
 
     # Determine the compiler
@@ -437,8 +441,10 @@ def configure_dependencies():
     return None
 
 def configure_changedir():
+    global srcDir
     targetdir = param('INPUT_DIRECTORY')
     if targetdir:
+        srcDir = targetdir
         return CmdList([
             PropertyPrint('Target directory', targetdir),
             ChDir(targetdir),

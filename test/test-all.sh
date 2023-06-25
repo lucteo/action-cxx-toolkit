@@ -13,6 +13,7 @@ ${CURDIR}/basic/test.sh
 ${CURDIR}/simple_make/test.sh
 ${CURDIR}/simple_cmake/test.sh
 ${CURDIR}/simple_conan_cmake/test.sh
+${CURDIR}/simple_conan2/test.sh
 ${CURDIR}/clang_tidy_pass/test.sh
 ${CURDIR}/clang_tidy_err/test.sh
 ${CURDIR}/cppcheck_pass/test.sh
