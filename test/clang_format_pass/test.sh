@@ -6,10 +6,12 @@ realpath() {
     [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"
 }
 CURDIR=$(realpath $(dirname "$0"))
+CUR_VERSION=`cat ${CURDIR}/../../cur_version`
+IMAGE_NAME=lucteo/action-cxx-toolkit.${CUR_VERSION}.main
 
 docker run $ci_env --rm -it --workdir /github/workspace -v "${CURDIR}":/github/workspace \
     -e INPUT_CHECKS='clang-format' \
-    lucteo/action-cxx-toolkit.main
+    ${IMAGE_NAME}
 status=$?
 
 # Check if the test succeeded

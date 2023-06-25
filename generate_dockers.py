@@ -18,6 +18,10 @@ def _expand_template(outfile, templatefilename, args):
         print(f"... wrote {outfile}")
 
 def main():
+    # Write the current version to a file
+    with open("cur_version", "w") as f:
+        f.write(current_version)
+
     _expand_template(f"Dockerfile.{current_version}.base", "Dockerfile.base.j2", {})
     base_image = f"lucteo/action-cxx-toolkit.{current_version}.base"
 
