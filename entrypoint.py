@@ -381,6 +381,14 @@ def auto_build_phase():
     PropertyPrint('Has Cmake', yesno(hasCmake))()
     PropertyPrint('Has Make', yesno(hasMake))()
 
+    # Print version for conan, cmake & make
+    if hasConan:
+        Command(f'conan --version')()
+    if hasCmake:
+        Command(f'cmake --version')()
+    if hasMake:
+        Command(f'make --version')()
+
     if not hasCmake and not hasMake:
         error('Cannot autodetect build system. Provide the build command manually')
 
@@ -488,8 +496,15 @@ def get_checks():
 
     return checks
 
+def read_file_content(filename):
+    return open(filename, 'r').read()
+
 
 def main():
+    HeaderPrint('action-cxx-toolkit')()
+    PropertyPrint('Version', read_file_content("/usr/local/etc/action-cxx-toolkit/version"))()
+    PropertyPrint('Build date', read_file_content("/usr/local/etc/action-cxx-toolkit/version_date"))()
+
     # Configure and build the phases with what we need to run
     HeaderPrint('Configuring')()
     global checks

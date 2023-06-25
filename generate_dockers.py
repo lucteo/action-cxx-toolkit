@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 
-import subprocess
 from jinja2 import Environment, FileSystemLoader
+from datetime import datetime
 
+# This is the version that we are using for building docker images.
+# Each time we change something here, we need to create a new version
+# to ensure we are keeping compatibility with projects that use the older versions of the images.
 current_version = "v8"
 
 clang_versions = list(range(7, 13 + 1))
@@ -18,9 +21,11 @@ def _expand_template(outfile, templatefilename, args):
         print(f"... wrote {outfile}")
 
 def main():
-    # Write the current version to a file
+    # Write the current version and current date to file
     with open("cur_version", "w") as f:
         f.write(current_version)
+    with open("cur_version_date", "w") as f:
+        f.write(datetime.today().strftime('%Y-%m-%d'))
 
     _expand_template(f"Dockerfile.{current_version}.base", "Dockerfile.base.j2", {})
     base_image = f"lucteo/action-cxx-toolkit.{current_version}.base"

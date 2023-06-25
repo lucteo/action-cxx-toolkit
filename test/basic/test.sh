@@ -14,7 +14,6 @@ CURDIR=$(realpath $(dirname "$0"))
 CUR_VERSION=`cat ${CURDIR}/../../cur_version`
 IMAGE_NAME=lucteo/action-cxx-toolkit.${CUR_VERSION}.main
 
-
 # Cleanup before the test
 rm -f ${CURDIR}/greeting
 

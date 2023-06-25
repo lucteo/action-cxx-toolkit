@@ -21,6 +21,10 @@ RUN set -xe; \
         --slave /usr/bin/gcc gcc /usr/bin/clang-{{ clang_version }} \
         --slave /usr/bin/g++ g++ /usr/bin/clang-{{ clang_version }}
 
+# Copy version information
+COPY cur_version /usr/local/etc/action-cxx-toolkit/version
+COPY cur_version_date /usr/local/etc/action-cxx-toolkit/version_date
+
 # The entry point
 COPY entrypoint.py /usr/local/bin/entrypoint.py
 ENTRYPOINT ["/usr/local/bin/entrypoint.py"]
