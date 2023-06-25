@@ -3,3 +3,6 @@ catch2/2.13.7
 
 [generators]
 CMakeToolchain
+
+[layout]
+cmake_layout
