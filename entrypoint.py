@@ -10,6 +10,7 @@ from typing import Protocol
 #   INPUT_DEPENDENCIES
 #   INPUT_DIRECTORY
 #   INPUT_BUILDDIR
+#   INPUT_INSTALLDIR
 #   INPUT_CC
 #   INPUT_CFLAGS
 #   INPUT_CXXFLAGS
@@ -225,31 +226,24 @@ def get_santizier_flags():
     else:
         return ''
 
-def configure_cmake_build(envSetCmd):
+def configure_cmake_build(envSetCmd, buildDir):
     ''' Configures the cmake build. Returns a command object to be run to build with cmake '''
     global srcDir
     global checks
 
     buildCmds = CmdList([])
 
-    # Setup build and install directories
-    buildDir = param('INPUT_BUILDDIR', '/tmp/build')
-    installDir = '/tmp/install'
-    PropertyPrint('Build directory', buildDir)()
-    PropertyPrint('Install directory', installDir)()
-    buildCmds.add(Command(f'mkdir -p {buildDir}'))
-    buildCmds.add(Command(f'mkdir {installDir}'))
-    buildCmds.add(ChDir(buildDir))
-
     cmake_flags = param('INPUT_CMAKEFLAGS', '')
     if cmake_flags:
         PropertyPrint('CMake flags', cmake_flags)()
 
     # Handle the checks that apply at the build step
-    cmake_post_build_cmd = ''
     other_cmake_flags = ''
     cmake_cc_flags = ''
     if 'install' in checks:
+        installDir = param('INPUT_INSTALLDIR', '/tmp/install')
+        PropertyPrint('Install directory', installDir)()
+        buildCmds.add(Command(f'mkdir -p {installDir}'))
         other_cmake_flags += f' -DCMAKE_INSTALL_PREFIX={installDir}'
     if 'warnings' in checks:
         cmake_cc_flags += ' -Wall -Werror'
@@ -386,9 +380,17 @@ def auto_build_phase():
     if hasConan:
         buildCmds.add(configure_conan(compilerInfo))
 
+    # Setup build and install directories
+    defaultBuildDir = '/tmp/build' if hasCmake else ''
+    buildDir = param('INPUT_BUILDDIR', defaultBuildDir)
+    if buildDir:
+        PropertyPrint('Build directory', buildDir)()
+        buildCmds.add(Command(f'mkdir -p {buildDir}'))
+        buildCmds.add(ChDir(buildDir))
+
     (buildCmd, testCmd) = (None, None)
     if hasCmake:
-        (buildCmd, testCmd) = configure_cmake_build(compilerInfo.environment_cmd())
+        (buildCmd, testCmd) = configure_cmake_build(compilerInfo.environment_cmd(), buildDir)
         buildCmds.add(buildCmd)
     elif hasMake:
         (buildCmd, testCmd) = configure_make_build()
