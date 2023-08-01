@@ -6,7 +6,7 @@ from datetime import datetime
 # This is the version that we are using for building docker images.
 # Each time we change something here, we need to create a new version
 # to ensure we are keeping compatibility with projects that use the older versions of the images.
-current_version = "v8"
+current_version = "v9"
 
 clang_versions = list(range(7, 13 + 1))
 gcc_versions = list(range(7, 11 + 1))
