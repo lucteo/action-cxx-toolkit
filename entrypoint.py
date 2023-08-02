@@ -435,7 +435,7 @@ def auto_test_phase(autoTestCmd):
 
     if 'clang-format' in checks:
         formatDirs = param('INPUT_CLANGFORMATDIRS', '.').split()
-        formatDirs = map(lambda d: f'"{dirs.srcDir}/{d}"', formatDirs)
+        formatDirs = map(lambda d: f'"{dirs.curDir}/{d}"', formatDirs)
         formatDirsStr = ' '.join(formatDirs)
         toRun.add(Command(f'find {formatDirsStr} \\( -name "*.[ch]" -o -name "*.cc" -o -name "*.cpp" -o -name "*.hpp" \\) -exec clang-format --Werror --dry-run {{}} +'))
 
