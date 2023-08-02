@@ -87,6 +87,13 @@ def param(name, default=None):
     res = os.environ.get(name)
     return res if res else default
 
+def paramBool(name, default=False):
+    ''' Gets a boolean environment variable param, with fallback to a default value.
+        Always return a boolean
+    '''
+    res = os.environ.get(name)
+    return res.lower() == "true" if res else default
+
 class Callable(Protocol):
     def __call__(self):
         pass
@@ -357,9 +364,9 @@ def auto_build_phase():
     HeaderPrint('Auto-determining build commands')()
     conanfileDir = param('INPUT_CONANFILEEDIR', srcDir)
     makefileDir = param('INPUT_MAKEFILEDIR', srcDir) 
-    hasConan = (param('INPUT_IGNORE_CONAN', 'false') == 'false') and os.path.isfile(f'{conanfileDir}/conanfile.txt') or os.path.isfile(f'{conanfileDir}/conanfile.py')
-    hasCmake = (param('INPUT_IGNORE_CMAKE', 'false') == 'false') and os.path.isfile(f'{makefileDir}/CMakeLists.txt')
-    hasMake = (param('INPUT_IGNORE_MAKE', 'false') == 'false') and os.path.isfile(f'{makefileDir}/Makefile')
+    hasConan = not paramBool('INPUT_IGNORE_CONAN') and os.path.isfile(f'{conanfileDir}/conanfile.txt') or os.path.isfile(f'{conanfileDir}/conanfile.py')
+    hasCmake = not paramBool('INPUT_IGNORE_CMAKE') and os.path.isfile(f'{makefileDir}/CMakeLists.txt')
+    hasMake = not paramBool('INPUT_IGNORE_MAKE') and os.path.isfile(f'{makefileDir}/Makefile')
     PropertyPrint('Has Conan', yesno(hasConan))()
     PropertyPrint('Has Cmake', yesno(hasCmake))()
     PropertyPrint('Has Make', yesno(hasMake))()
