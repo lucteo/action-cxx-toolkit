@@ -223,7 +223,8 @@ def configure_conan(compilerInfo) -> Callable:
             conan_extra_flags += ' -s compiler.libcxx=libc++'
 
     # Generate the command
-    conan_command = f'conan profile detect && conan install "{srcDir}" --build=missing -s build_type=Release {conan_extra_flags}'
+    conanfileDir = param('INPUT_CONANFILEEDIR', srcDir)
+    conan_command = f'conan profile detect && conan install "{conanfileDir}" --build=missing -s build_type=Release {conan_extra_flags}'
     PropertyPrint('Conan command', conan_command)()
     return Command(conan_command)
 
