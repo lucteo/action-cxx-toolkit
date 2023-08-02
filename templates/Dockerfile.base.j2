@@ -1,8 +1,8 @@
-
-FROM ubuntu:20.04
+FROM {{ base_image }}
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+{% block common_setup %}
 # Common package setup
 RUN set -xe; \
     # Install pacakges to allow us to install other packages
@@ -23,3 +23,16 @@ RUN set -xe; \
     rm -rf /var/lib/apt/lists/*; \
     # Install conan
     python3 -m pip install conan
+{% endblock common_setup %}
+
+{% block compiler_setup %}
+{% endblock %}
+
+# Copy version information
+COPY cur_version /usr/local/etc/action-cxx-toolkit/version
+COPY cur_version_date /usr/local/etc/action-cxx-toolkit/version_date
+
+# The entry point
+COPY entrypoint.py /usr/local/bin/entrypoint.py
+ENTRYPOINT ["/usr/local/bin/entrypoint.py"]
+

@@ -8,8 +8,14 @@ from datetime import datetime
 # to ensure we are keeping compatibility with projects that use the older versions of the images.
 current_version = "v9"
 
+ubuntu_version = "20.04"
+
 clang_versions = list(range(7, 13 + 1))
 gcc_versions = list(range(7, 11 + 1))
+nvcc_versions = ["11.7.1", "11.8.0"]
+nvhpc_versions = [
+    { "hpc_ver": "22.7", "cuda_ver": "11.7"}
+]
 
 def _expand_template(outfile, templatefilename, args):
     """ Expand the a jinja template and writes the output to file"""
@@ -27,8 +33,7 @@ def main():
     with open("cur_version_date", "w") as f:
         f.write(datetime.today().strftime('%Y-%m-%d'))
 
-    _expand_template(f"Dockerfile.{current_version}.base", "Dockerfile.base.j2", {})
-    base_image = f"lucteo/action-cxx-toolkit.{current_version}.base"
+    base_image = f"ubuntu:{ubuntu_version}"
 
     _expand_template(f"Dockerfile.{current_version}.main", "Dockerfile.main.j2", {
         "base_image": base_image,
@@ -36,22 +41,42 @@ def main():
         "gcc_version": gcc_versions[-1],
     })
 
+    images = [f"{current_version}.main"]
+
     for v in gcc_versions:
-        _expand_template(f"Dockerfile.{current_version}.gcc{v}", "Dockerfile.gcc.j2", {
+        image_name = f"{current_version}.gcc{v}"
+        _expand_template(f"Dockerfile.{image_name}", "Dockerfile.gcc.j2", {
             "base_image": base_image,
             "gcc_version": v,
         })
+        images.append(image_name)
     for v in clang_versions:
         repo_version = v if v > 10 else 10
-        _expand_template(f"Dockerfile.{current_version}.clang{v}", "Dockerfile.clang.j2", {
+        image_name = f"{current_version}.clang{v}"
+        _expand_template(f"Dockerfile.{image_name}", "Dockerfile.clang.j2", {
             "base_image": base_image,
             "clang_version": v,
             "clang_repo_version": repo_version,
         })
-
-
-    images = ["base", "main"] + [f"gcc{v}" for v in gcc_versions] + [f"clang{v}" for v in clang_versions]
-    images = [f"{current_version}.{name}" for name in images]
+        images.append(image_name)
+    for v in nvcc_versions:
+        for gcc_ver in gcc_versions:
+            image_name = f"{current_version}.gcc{gcc_ver}-cuda{v}"
+            _expand_template(f"Dockerfile.{image_name}", "Dockerfile.gcc.j2", {
+                "base_image": f"nvidia/cuda:{v}-devel-ubuntu{ubuntu_version}",
+                "gcc_version": gcc_ver,
+            })
+            images.append(image_name)
+    for v in nvhpc_versions:
+        hpc_ver = v["hpc_ver"]
+        cuda_ver = v["cuda_ver"]
+        for gcc_ver in gcc_versions:
+            image_name = f"{current_version}.gcc{gcc_ver}-nvhpc{hpc_ver}-cuda{cuda_ver}"
+            _expand_template(f"Dockerfile.{image_name}", "Dockerfile.gcc.j2", {
+                "base_image": f"nvcr.io/nvidia/nvhpc:{hpc_ver}-devel-cuda{cuda_ver}-ubuntu{ubuntu_version}",
+                "gcc_version": gcc_ver,
+            })
+            images.append(image_name)
 
     _expand_template(f"buildall.sh", "buildall.sh.j2", {"images": images})
     _expand_template(f"uploadall.sh", "uploadall.sh.j2", {"images": images})

@@ -1,13 +1,10 @@
+{% extends "Dockerfile.base.j2" %}
 
-FROM {{ base_image }}
-
-ENV DEBIAN_FRONTEND=noninteractive
-
+{% block compiler_setup %}
 RUN set -xe; \
     # Add repository to get clang from
     wget -qO - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -; \
     apt-add-repository -y -n "deb http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs)-{{ clang_version }} main"; \
-
     apt-get -y update; \
     apt-get -y install --no-install-recommends \
         # Install clang & tools
@@ -24,11 +21,4 @@ RUN set -xe; \
         --slave /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-{{ clang_version }} \
         --slave /usr/bin/gcc gcc /usr/bin/gcc-{{ gcc_version }} \
         --slave /usr/bin/g++ g++ /usr/bin/g++-{{ gcc_version }}
-
-# Copy version information
-COPY cur_version /usr/local/etc/action-cxx-toolkit/version
-COPY cur_version_date /usr/local/etc/action-cxx-toolkit/version_date
-
-# The entry point
-COPY entrypoint.py /usr/local/bin/entrypoint.py
-ENTRYPOINT ["/usr/local/bin/entrypoint.py"]
+{% endblock compiler_setup %}

@@ -1,8 +1,6 @@
+{% extends "Dockerfile.base.j2" %}
 
-FROM {{ base_image }}
-
-ENV DEBIAN_FRONTEND=noninteractive
-
+{% block compiler_setup %}
 RUN set -xe; \
     apt-get -y update; \
     apt-get -y install --no-install-recommends \
@@ -12,11 +10,4 @@ RUN set -xe; \
     rm -rf /var/lib/apt/lists/*; \
     update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-{{ gcc_version }} 100 \
         --slave /usr/bin/g++ g++ /usr/bin/g++-{{ gcc_version }}
-
-# Copy version information
-COPY cur_version /usr/local/etc/action-cxx-toolkit/version
-COPY cur_version_date /usr/local/etc/action-cxx-toolkit/version_date
-
-# The entry point
-COPY entrypoint.py /usr/local/bin/entrypoint.py
-ENTRYPOINT ["/usr/local/bin/entrypoint.py"]
+{% endblock compiler_setup %}
