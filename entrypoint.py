@@ -46,10 +46,17 @@ valid_checks = [
     'coverage=lcov',
 ]
 
-# The source directory
-srcDir = os.getcwd()
 # The list of checks that need to be run here (see valid_checks above)
 checks = []
+
+@dataclass
+class Directories:
+    ''' Holds the directories needed for the build system '''
+    curDir: str = "" # Current working dir
+    srcDir: str = "" # The directory with the source files
+    conanfileDir: str = "" # Directory where conanfile.* is searched
+
+dirs = Directories()
 
 class colors:
     ''' The colors to be used by this script; Unix colors '''
@@ -207,8 +214,6 @@ def configure_compiler_options() -> CompilerInfo:
 
 def configure_conan(compilerInfo) -> Callable:
     ''' Configure the build system with conan '''
-    global srcDir
-
     # Check the flags that we need to add to the conan command, based on the compiler version
     conan_extra_flags = param('INPUT_CONANFLAGS', '')
     conan_extra_flags += f' -s compiler={compilerInfo.compiler()}'
@@ -223,8 +228,7 @@ def configure_conan(compilerInfo) -> Callable:
             conan_extra_flags += ' -s compiler.libcxx=libc++'
 
     # Generate the command
-    conanfileDir = param('INPUT_CONANFILEEDIR', srcDir)
-    conan_command = f'conan profile detect && conan install "{conanfileDir}" --build=missing -s build_type=Release {conan_extra_flags}'
+    conan_command = f'conan profile detect && conan install "{dirs.conanfileDir}" --build=missing -s build_type=Release {conan_extra_flags}'
     PropertyPrint('Conan command', conan_command)()
     return Command(conan_command)
 
@@ -241,7 +245,6 @@ def get_santizier_flags():
 
 def configure_cmake_build(envSetCmd, buildDir):
     ''' Configures the cmake build. Returns a command object to be run to build with cmake '''
-    global srcDir
     global checks
 
     buildCmds = CmdList([])
@@ -277,7 +280,7 @@ def configure_cmake_build(envSetCmd, buildDir):
         other_cmake_flags += f' -DCMAKE_CXX_FLAGS="{cxxflags}"'
 
     # Generate the actual commands to be run based on the above flags
-    cmake_command = f'{envSetCmd} && cmake {cmake_flags} {other_cmake_flags} "{srcDir}"'
+    cmake_command = f'{envSetCmd} && cmake {cmake_flags} {other_cmake_flags} "{dirs.srcDir}"'
     make_params = param('INPUT_MAKEFLAGS', '')
     make_command = f'cmake --build . -v {make_params}'
 
@@ -309,12 +312,12 @@ def configure_cmake_build(envSetCmd, buildDir):
     if 'clang-tidy' in checks:
         PropertyPrint('Running clang-tidy', yesno(True))()
         flags = param('INPUT_CLANGTIDYFLAGS', '')
-        buildCmds.add(Command(f'if [ -f "{srcDir}/.clang-tidy" ]; then cp --verbose "{srcDir}/.clang-tidy" {buildDir}; fi'))
+        buildCmds.add(Command(f'if [ -f "{dirs.srcDir}/.clang-tidy" ]; then cp --verbose "{dirs.srcDir}/.clang-tidy" {buildDir}; fi'))
         buildCmds.add(Command(f'/usr/lib/llvm-13/bin/run-clang-tidy -p . {flags}'))
 
     # Generate a test command to be used later
     ctest_flags = param('INPUT_CTESTFLAGS', '')
-    testCmd = Command(f'ctest --verbose {ctest_flags} {srcDir}')
+    testCmd = Command(f'ctest --verbose {ctest_flags} {dirs.srcDir}')
 
     return (buildCmds, testCmd)
 
@@ -363,11 +366,9 @@ def auto_build_phase():
         return (None, None)
 
     HeaderPrint('Auto-determining build commands')()
-    conanfileDir = param('INPUT_CONANFILEEDIR', srcDir)
-    makefileDir = param('INPUT_MAKEFILEDIR', srcDir) 
-    hasConan = not paramBool('INPUT_IGNORE_CONAN') and os.path.isfile(f'{conanfileDir}/conanfile.txt') or os.path.isfile(f'{conanfileDir}/conanfile.py')
-    hasCmake = not paramBool('INPUT_IGNORE_CMAKE') and os.path.isfile(f'{makefileDir}/CMakeLists.txt')
-    hasMake = not paramBool('INPUT_IGNORE_MAKE') and os.path.isfile(f'{makefileDir}/Makefile')
+    hasConan = not paramBool('INPUT_IGNORE_CONAN') and os.path.isfile(f'{dirs.conanfileDir}/conanfile.txt') or os.path.isfile(f'{dirs.conanfileDir}/conanfile.py')
+    hasCmake = not paramBool('INPUT_IGNORE_CMAKE') and os.path.isfile(f'{dirs.makefileDir}/CMakeLists.txt')
+    hasMake = not paramBool('INPUT_IGNORE_MAKE') and os.path.isfile(f'{dirs.makefileDir}/Makefile')
     PropertyPrint('Has Conan', yesno(hasConan))()
     PropertyPrint('Has Cmake', yesno(hasCmake))()
     PropertyPrint('Has Make', yesno(hasMake))()
@@ -415,7 +416,6 @@ def auto_build_phase():
 
 def auto_test_phase(autoTestCmd):
     ''' Configures and runs the test phase (automatic mode). '''
-    global srcDir
     global checks
 
     toRun = CmdList([])
@@ -428,16 +428,16 @@ def auto_test_phase(autoTestCmd):
             toRun.add(HeaderPrint('Gathering test coverage info'))
 
             if 'coverage=codecov' in checks:
-                toRun.add(Command(f'bash -c "bash <(curl -s https://codecov.io/bash) -R {srcDir}"'))
+                toRun.add(Command(f'bash -c "bash <(curl -s https://codecov.io/bash) -R {dirs.srcDir}"'))
             if 'coverage=lcov' in checks:
                 toRun.add(Command('lcov -c -d . -o lcov.info'))
-                toRun.add(Command(f'cp lcov.info {srcDir}/'))
+                toRun.add(Command(f'cp lcov.info {dirs.srcDir}/'))
 
     if 'clang-format' in checks:
-        dirs = param('INPUT_CLANGFORMATDIRS', '.').split()
-        dirs = map(lambda d: f'"{srcDir}/{d}"', dirs)
-        dirsStr = ' '.join(dirs)
-        toRun.add(Command(f'find {dirsStr} \\( -name "*.[ch]" -o -name "*.cc" -o -name "*.cpp" -o -name "*.hpp" \\) -exec clang-format --Werror --dry-run {{}} +'))
+        formatDirs = param('INPUT_CLANGFORMATDIRS', '.').split()
+        formatDirs = map(lambda d: f'"{dirs.srcDir}/{d}"', formatDirs)
+        formatDirsStr = ' '.join(formatDirs)
+        toRun.add(Command(f'find {formatDirsStr} \\( -name "*.[ch]" -o -name "*.cc" -o -name "*.cpp" -o -name "*.hpp" \\) -exec clang-format --Werror --dry-run {{}} +'))
 
     return toRun
 
@@ -451,16 +451,34 @@ def configure_dependencies():
         ])
     return None
 
-def configure_changedir():
-    global srcDir
+def configure_directories():
+    cmds = []
+
+    global dirs
+    global checks
+
     targetdir = param('INPUT_DIRECTORY')
     if targetdir:
-        srcDir = targetdir
-        return CmdList([
-            PropertyPrint('Target directory', targetdir),
-            ChDir(targetdir),
-        ])
-    return None
+        dirs.curDir = targetdir
+        cmds.append(ChDir(targetdir))
+    else:
+        dirs.curDir = os.getcwd()
+    PropertyPrint('Working directory', dirs.curDir)()
+
+    dirs.srcDir = dirs.curDir
+    if not targetdir:
+        # If there is a `src` directory that contains CMakelist.txt or Makefile, take that as our source directory
+        if os.path.isfile(f'{dirs.srcDir}/src/CMakeLists.txt') or os.path.isfile(f'{dirs.srcDir}/src/Makefile'):
+            dirs.srcDir = f"{dirs.srcDir}/src"
+    PropertyPrint('Source directory', dirs.srcDir)()
+
+    dirs.conanfileDir = param('INPUT_CONANFILEEDIR', dirs.curDir)
+    PropertyPrint('Conanfile directory', dirs.conanfileDir)()
+
+    dirs.makefileDir = param('INPUT_MAKEFILEDIR', dirs.srcDir)
+    PropertyPrint('Makefile directory', dirs.makefileDir)()
+
+    return CmdList(cmds)
 
 def check_custom_phase(paramName, printText):
     customCmd = param(paramName)
@@ -531,7 +549,7 @@ def main():
     try:
         phases = CmdList([])
         phases.add(configure_dependencies())
-        phases.add(configure_changedir())
+        phases.add(configure_directories())
 
         # Pre-build phase
         phases.add(check_custom_phase('INPUT_PREBUILD_COMMAND', 'Running custom pre-build command'))
