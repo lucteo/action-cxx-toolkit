@@ -207,7 +207,6 @@ def configure_compiler_options() -> CompilerInfo:
     ''' Detect the compiler version we need to use. '''
     compilerVer = param('INPUT_CC', 'gcc')
     cxxVer = compilerVer.replace("gcc", "g++")
-    cxxVer = cxxVer.replace("clang", "clang++")
     cc = f'/usr/bin/{compilerVer}'
     cxx = f'/usr/bin/{cxxVer}'
     return CompilerInfo(compilerVer, cc, cxx)
