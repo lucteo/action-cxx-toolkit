@@ -17,6 +17,7 @@ RUN set -xe; \
     ; \
     rm -rf /var/lib/apt/lists/*; \
     update-alternatives --install /usr/bin/clang clang /usr/bin/clang-{{ clang_version }} 100  \
+        --slave /usr/bin/clang++ clang++ /usr/bin/clang++-{{ clang_version }} \
         --slave /usr/bin/clang-format clang-format /usr/bin/clang-format-{{ clang_version }} \
         --slave /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-{{ clang_version }} \
         --slave /usr/bin/gcc gcc /usr/bin/gcc-{{ gcc_version }} \
