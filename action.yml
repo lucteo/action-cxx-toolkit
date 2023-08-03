@@ -24,7 +24,19 @@ inputs:
     description: 'Ubuntu packges to install before building the software'
     default: ''
   directory:
-    description: 'The directory to start building from'
+    description: 'The directory to start building from (current working directory)'
+    default: ''
+  conanfiledir:
+    description: 'The directory to search for conanfile.txt or conanfile.py'
+    default: ''
+  makefiledir:
+    description: 'The directory to search for CMakeList.txt or Makefile'
+    default: ''
+  builddir:
+    description: 'The directory where to perform the build'
+    default: ''
+  installdir:
+    description: 'The directory where to install the software'
     default: ''
   cc:
     description: 'The C compiler to use; based on it the C++ compiler is also deduced'
