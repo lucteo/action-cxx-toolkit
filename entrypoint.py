@@ -2,22 +2,26 @@
 
 import os, sys, subprocess
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Protocol
 
 # Input variables:
 #   INPUT_CHECKS
 #   INPUT_DEPENDENCIES
 #   INPUT_DIRECTORY
+#   INPUT_CONANFILEEDIR
+#   INPUT_MAKEFILEDIR
 #   INPUT_BUILDDIR
+#   INPUT_INSTALLDIR
 #   INPUT_CC
 #   INPUT_CFLAGS
 #   INPUT_CXXFLAGS
-#   INPUT_CONANFLAGS
-#   INPUT_CMAKEFLAGS
-#   INPUT_CTESTFLAGS
 #   INPUT_IGNORE_CONAN
 #   INPUT_IGNORE_CMAKE
 #   INPUT_IGNORE_MAKE
+#   INPUT_CONANFLAGS
+#   INPUT_CMAKEFLAGS
+#   INPUT_CTESTFLAGS
 #   INPUT_MAKEFLAGS
 #   INPUT_IWYUFLAGS
 #   INPUT_CPPCHECKFLAGS
@@ -42,12 +46,17 @@ valid_checks = [
     'coverage=lcov',
 ]
 
-# The source directory
-srcDir = os.getcwd()
 # The list of checks that need to be run here (see valid_checks above)
 checks = []
-# The test command generated depending on the build
-auto_test_cmd = ''
+
+@dataclass
+class Directories:
+    ''' Holds the directories needed for the build system '''
+    curDir: str = "" # Current working dir
+    srcDir: str = "" # The directory with the source files
+    conanfileDir: str = "" # Directory where conanfile.* is searched
+
+dirs = Directories()
 
 class colors:
     ''' The colors to be used by this script; Unix colors '''
@@ -84,6 +93,17 @@ def param(name, default=None):
     ''' Gets an environment variable param, with fallback to a default value. '''
     res = os.environ.get(name)
     return res if res else default
+
+def paramBool(name, default=False):
+    ''' Gets a boolean environment variable param, with fallback to a default value.
+        Always return a boolean
+    '''
+    res = os.environ.get(name)
+    return res.lower() == "true" if res else default
+
+class Callable(Protocol):
+    def __call__(self):
+        pass
 
 @dataclass
 class HeaderPrint:
@@ -138,100 +158,76 @@ class CmdList:
         if cmd:
             self.cmds.append(cmd)
 
+@dataclass
+class CompilerInfo:
+    ''' Describes the compiler the needs to be used. '''
+    # The version of the compiler to be used, short name; e.g., gcc, gcc-9, clang, clang-11, etc
+    compilerVer: str
+    # The path to the C compiler
+    ccPath: str
+    # The path to the C++ compiler
+    cxxPath: str
 
-def configure_compiler_options():
-    ''' Detect the compiler version we need to use, and get the required environment variables.
-        Returns a pair between compiler+version and the command to set proper environment.
-    '''
+    def compiler(self) -> str:
+        """ Return the compiler name without version. E.g., gcc, clang"""
+        return self.compilerVer.split('-')[0]
+
+    def has_version(self) -> bool:
+        return "-" in self.compilerVer
+    
+    def version(self) -> str:
+        """ Return the compiler version, if we have one"""
+        return self.compilerVer.split('-')[1]
+
+    def environment_cmd(self) -> str:
+        """ Returns the command that needs to be issued to set the compilers in the environment. """
+        return f'export CC={self.ccPath} CXX={self.cxxPath}'
+    
+    def describe(self) -> Callable:
+        """ Returns a callable that would describe the compiler being used. """
+        return CmdList([
+            PropertyPrint('C Compiler to be used', self.ccPath),
+            Command(f'{self.ccPath} --version'),
+            PropertyPrint('C++ Compiler to be used', self.cxxPath),
+            Command(f'{self.cxxPath} --version'),
+            PropertyPrint('Environment flags to be used', self.environment_cmd()),
+        ])
+    
+    def update_alternatives(self) -> Callable:
+        """ Issue a command to update the alternatives for the compiler.
+            We are doing this for the tools to know which compiler to use
+        """
+        if "-" in self.compilerVer:
+            return Command(f'update-alternatives --set {self.compiler()} {self.ccPath}')
+        else:
+            return CmdList([])
+
+
+def configure_compiler_options() -> CompilerInfo:
+    ''' Detect the compiler version we need to use. '''
     compilerVer = param('INPUT_CC', 'gcc')
-    compilers_map = {
-        'gcc': 'g++',
-        'gcc-7': 'g++-7',
-        'gcc-8': 'g++-8',
-        'gcc-9': 'g++-9',
-        'gcc-10': 'g++-10',
-        'gcc-11': 'g++-11',
-        'clang': 'clang++',
-        'clang-7': 'clang++-7',
-        'clang-8': 'clang++-8',
-        'clang-9': 'clang++-9',
-        'clang-10': 'clang++-10',
-        'clang-11': 'clang++-11',
-        'clang-12': 'clang++-12',
-        'clang-13': 'clang++-13',
-        'clang-14': 'clang++-14',
-        'clang-15': 'clang++-15',
-        'clang-16': 'clang++-16',
-        'nvcc': 'nvcc',
-        'nvc++': 'nvc++',
-        'mpicc': 'mpic++',
-    }
-    if compilerVer not in compilers_map.keys():
-        error(f'Invalid compiler supplied: {compilerVer}')
-    cc = subprocess.check_output(f'which {compilerVer}', shell=True).decode("UTF-8").strip()
-    cxx = subprocess.check_output(f'which {compilers_map[compilerVer]}', shell=True).decode("UTF-8").strip()
-    PropertyPrint('C Compiler to be used', cc)()
-    Command(f'{cc} --version')()
-    PropertyPrint('C++ Compiler to be used', cxx)()
-    Command(f'{cxx} --version')()
+    cxxVer = compilerVer.replace("gcc", "g++")
+    cc = f'/usr/bin/{compilerVer}'
+    cxx = f'/usr/bin/{cxxVer}'
+    return CompilerInfo(compilerVer, cc, cxx)
 
-    # Build the compilation environment flags
-    envSetCmd = f'export CC={cc} CXX={cxx}'
-    PropertyPrint('Environment flags to be used', envSetCmd)()
-
-    # Update the alternatives, to ensure we are pointing to the right version
-    # Needed mostly for the clang tools
-    if compilerVer != 'gcc' and compilerVer != 'clang' and (
-        'gcc' in compilerVer or 'clang' in compilerVer
-    ):
-        base_compilers_map = {
-            'gcc': 'gcc',
-            'gcc-7': 'gcc',
-            'gcc-8': 'gcc',
-            'gcc-9': 'gcc',
-            'gcc-10': 'gcc',
-            'gcc-11': 'gcc',
-            'clang': 'clang',
-            'clang-7': 'clang',
-            'clang-8': 'clang',
-            'clang-9': 'clang',
-            'clang-10': 'clang',
-            'clang-11': 'clang',
-            'clang-12': 'clang',
-            'clang-13': 'clang',
-            'clang-14': 'clang',
-            'clang-15': 'clang',
-            'clang-16': 'clang',
-        }
-        baseComp = base_compilers_map[compilerVer]
-        Command(f'update-alternatives --set {baseComp} /usr/bin/{compilerVer}')()
-
-    return (compilerVer, envSetCmd)
-
-def configure_conan(compilerVer, envFlags, buildType = 'Release'):
-    ''' Configure the build system with conan; returns a command object '''
-    global srcDir
-
-    # Split the given compiler string into base compiler name and the version
-    p = compilerVer.split('-')
-    compiler = p[0]
-
+def configure_conan(compilerInfo) -> Callable:
+    ''' Configure the build system with conan '''
     # Check the flags that we need to add to the conan command, based on the compiler version
     conan_extra_flags = param('INPUT_CONANFLAGS', '')
-    conan_extra_flags += f' -s compiler={compiler}'
-    if compilerVer == 'clang-7':
+    conan_extra_flags += f' -s compiler={compilerInfo.compiler()}'
+    if compilerInfo.compilerVer == 'clang-7':
         conan_extra_flags += f' -s compiler.version=7.0'
-    elif len(p) > 1:
-        ver = p[1]
-        conan_extra_flags += f' -s compiler.version={ver}'
+    elif compilerInfo.has_version():
+        conan_extra_flags += f' -s compiler.version={compilerInfo.version()}'
     if 'compiler.libcxx' not in conan_extra_flags:
-        if compiler == 'gcc':
+        if compilerInfo.compiler() == 'gcc':
             conan_extra_flags += ' -s compiler.libcxx=libstdc++11'
-        elif compiler == 'clang':
+        elif compilerInfo.compiler() == 'clang':
             conan_extra_flags += ' -s compiler.libcxx=libc++'
 
     # Generate the command
-    conan_command = f'{envFlags} && conan install "{srcDir}" --build=missing -s build_type={buildType} {conan_extra_flags}'
+    conan_command = f'conan profile detect && conan install "{dirs.conanfileDir}" --build=missing -s build_type=Release {conan_extra_flags}'
     PropertyPrint('Conan command', conan_command)()
     return Command(conan_command)
 
@@ -246,33 +242,23 @@ def get_santizier_flags():
     else:
         return ''
 
-def configure_cmake_build(compilerVer, envSetCmd, hasConan):
+def configure_cmake_build(envSetCmd, buildDir):
     ''' Configures the cmake build. Returns a command object to be run to build with cmake '''
-    global srcDir
     global checks
-    global auto_test_cmd
 
     buildCmds = CmdList([])
-
-    # Setup build and install directories
-    srcDir = os.getcwd()
-    buildDir = param('INPUT_BUILDDIR', '/tmp/build')
-    installDir = '/tmp/install'
-    PropertyPrint('Build directory', buildDir)()
-    PropertyPrint('Install directory', installDir)()
-    buildCmds.add(Command(f'mkdir -p {buildDir}'))
-    buildCmds.add(Command(f'mkdir {installDir}'))
-    buildCmds.add(ChDir(buildDir))
 
     cmake_flags = param('INPUT_CMAKEFLAGS', '')
     if cmake_flags:
         PropertyPrint('CMake flags', cmake_flags)()
 
     # Handle the checks that apply at the build step
-    cmake_post_build_cmd = ''
     other_cmake_flags = ''
     cmake_cc_flags = ''
     if 'install' in checks:
+        installDir = param('INPUT_INSTALLDIR', '/tmp/install')
+        PropertyPrint('Install directory', installDir)()
+        buildCmds.add(Command(f'mkdir -p {installDir}'))
         other_cmake_flags += f' -DCMAKE_INSTALL_PREFIX={installDir}'
     if 'warnings' in checks:
         cmake_cc_flags += ' -Wall -Werror'
@@ -292,12 +278,8 @@ def configure_cmake_build(compilerVer, envSetCmd, hasConan):
     if cxxflags:
         other_cmake_flags += f' -DCMAKE_CXX_FLAGS="{cxxflags}"'
 
-    # If we have conan, add a conan command first
-    if hasConan:
-        buildCmds.add(configure_conan(compilerVer, envSetCmd))
-
     # Generate the actual commands to be run based on the above flags
-    cmake_command = f'{envSetCmd} && cmake {cmake_flags} {other_cmake_flags} "{srcDir}"'
+    cmake_command = f'{envSetCmd} && cmake {cmake_flags} {other_cmake_flags} "{dirs.srcDir}"'
     make_params = param('INPUT_MAKEFLAGS', '')
     make_command = f'cmake --build . -v {make_params}'
 
@@ -329,24 +311,20 @@ def configure_cmake_build(compilerVer, envSetCmd, hasConan):
     if 'clang-tidy' in checks:
         PropertyPrint('Running clang-tidy', yesno(True))()
         flags = param('INPUT_CLANGTIDYFLAGS', '')
-        buildCmds.add(Command(f'if [ -f "{srcDir}/.clang-tidy" ]; then cp --verbose "{srcDir}/.clang-tidy" {buildDir}; fi'))
-        buildCmds.add(Command(f'run-clang-tidy -p . {flags}'))
+        buildCmds.add(Command(f'if [ -f "{dirs.srcDir}/.clang-tidy" ]; then cp --verbose "{dirs.srcDir}/.clang-tidy" {buildDir}; fi'))
+        buildCmds.add(Command(f'/usr/lib/llvm-13/bin/run-clang-tidy -p . {flags}'))
 
     # Generate a test command to be used later
     ctest_flags = param('INPUT_CTESTFLAGS', '')
-    auto_test_cmd = f'ctest --verbose {ctest_flags} .'
+    testCmd = Command(f'ctest --verbose {ctest_flags} {dirs.srcDir}')
 
-    return buildCmds
+    return (buildCmds, testCmd)
 
-def configure_make_build(compilerVer, envSetCmd, hasConan):
+def configure_make_build():
     ''' Configures the make build. Returns a command object to be run to build with make '''
     global checks
-    global auto_test_cmd
 
     buildCmds = CmdList([])
-
-    if hasConan:
-        buildCmds.add(configure_conan(compilerVer, envSetCmd))
 
     # Depending on checks, check if we can add C or C++ flags
     make_cc_flags = ''
@@ -364,7 +342,7 @@ def configure_make_build(compilerVer, envSetCmd, hasConan):
         make_params += f' CXXFLAGS="{cxxflags}"'
 
 
-    make_command = f'{envSetCmd} && make {make_params}'
+    make_command = f'make {make_params}'
     PropertyPrint('Build command', make_command)()
     buildCmds.add(Command(make_command))
 
@@ -375,71 +353,92 @@ def configure_make_build(compilerVer, envSetCmd, hasConan):
         buildCmds.add(Command(install_command))
 
     # Generate a test command to be used later
-    auto_test_cmd = f'make test'
+    testCmd = Command(f'make test')
 
-    return buildCmds
+    return (buildCmds, testCmd)
 
 def auto_build_phase():
     ''' Configures and runs the build phase (automatic mode). '''
     global checks
-    global auto_test_cmd
 
     if 'build' not in checks and 'clang-tidy' not in checks and 'cppcheck' not in checks and 'iwyu' not in checks:
-        return
+        return (None, None)
 
     HeaderPrint('Auto-determining build commands')()
-    hasConan = (param('INPUT_IGNORE_CONAN', 'false') == 'false') and (os.path.isfile('conanfile.txt') or os.path.isfile('conanfile.py'))
-    hasCmake = (param('INPUT_IGNORE_CMAKE', 'false') == 'false') and os.path.isfile('CMakeLists.txt')
-    hasMake = (param('INPUT_IGNORE_MAKE', 'false') == 'false') and os.path.isfile('Makefile')
+    hasConan = not paramBool('INPUT_IGNORE_CONAN') and os.path.isfile(f'{dirs.conanfileDir}/conanfile.txt') or os.path.isfile(f'{dirs.conanfileDir}/conanfile.py')
+    hasCmake = not paramBool('INPUT_IGNORE_CMAKE') and os.path.isfile(f'{dirs.makefileDir}/CMakeLists.txt')
+    hasMake = not paramBool('INPUT_IGNORE_MAKE') and os.path.isfile(f'{dirs.makefileDir}/Makefile')
     PropertyPrint('Has Conan', yesno(hasConan))()
     PropertyPrint('Has Cmake', yesno(hasCmake))()
     PropertyPrint('Has Make', yesno(hasMake))()
+
+    # Print version for conan, cmake & make
+    if hasConan:
+        Command(f'conan --version')()
+    if hasCmake:
+        Command(f'cmake --version')()
+    if hasMake:
+        Command(f'make --version')()
 
     if not hasCmake and not hasMake:
         error('Cannot autodetect build system. Provide the build command manually')
 
     # Determine the compiler
-    (compilerVer, envSetCmd) = configure_compiler_options()
+    compilerInfo = configure_compiler_options()
+    compilerInfo.describe()()
 
     buildCmds = CmdList([])
     buildCmds.add(HeaderPrint('Building the software'))
+    buildCmds.add(compilerInfo.update_alternatives())
+
+    # If we have conan, add a conan command first
+    if hasConan:
+        buildCmds.add(configure_conan(compilerInfo))
+
+    # Setup build and install directories
+    defaultBuildDir = '/tmp/build' if hasCmake else ''
+    buildDir = param('INPUT_BUILDDIR', defaultBuildDir)
+    if buildDir:
+        PropertyPrint('Build directory', buildDir)()
+        buildCmds.add(Command(f'mkdir -p {buildDir}'))
+        buildCmds.add(ChDir(buildDir))
+
+    (buildCmd, testCmd) = (None, None)
     if hasCmake:
-        buildCmds.add(configure_cmake_build(compilerVer, envSetCmd, hasConan))
+        (buildCmd, testCmd) = configure_cmake_build(compilerInfo.environment_cmd(), buildDir)
+        buildCmds.add(buildCmd)
     elif hasMake:
-        buildCmds.add(configure_make_build(compilerVer, envSetCmd, hasConan))
+        (buildCmd, testCmd) = configure_make_build()
+        buildCmds.add(buildCmd)
 
-    # Run the build commands
-    buildCmds()
+    return (buildCmds, testCmd)
 
-def auto_test_phase():
+def auto_test_phase(autoTestCmd):
     ''' Configures and runs the test phase (automatic mode). '''
-    global srcDir
     global checks
-    global auto_test_cmd
 
     toRun = CmdList([])
     if 'test' in checks:
         toRun.add(HeaderPrint('Running tests'))
-        toRun.add(Command(auto_test_cmd))
+        toRun.add(autoTestCmd)
 
         # Post-test actions?
         if 'coverage=codecov' in checks or 'coverage=lcov' in checks:
             toRun.add(HeaderPrint('Gathering test coverage info'))
 
             if 'coverage=codecov' in checks:
-                toRun.add(Command(f'bash -c "bash <(curl -s https://codecov.io/bash) -R {srcDir}"'))
+                toRun.add(Command(f'bash -c "bash <(curl -s https://codecov.io/bash) -R {dirs.srcDir}"'))
             if 'coverage=lcov' in checks:
                 toRun.add(Command('lcov -c -d . -o lcov.info'))
-                toRun.add(Command(f'cp lcov.info {srcDir}/'))
+                toRun.add(Command(f'cp lcov.info {dirs.srcDir}/'))
 
     if 'clang-format' in checks:
-        dirs = param('INPUT_CLANGFORMATDIRS', '.').split()
-        dirs = map(lambda d: f'"{srcDir}/{d}"', dirs)
-        dirsStr = ' '.join(dirs)
-        toRun.add(Command(f'find {dirsStr} \\( -name "*.[ch]" -o -name "*.cc" -o -name "*.cpp" -o -name "*.hpp" \\) -exec clang-format --Werror --dry-run {{}} +'))
+        formatDirs = param('INPUT_CLANGFORMATDIRS', '.').split()
+        formatDirs = map(lambda d: f'"{dirs.curDir}/{d}"', formatDirs)
+        formatDirsStr = ' '.join(formatDirs)
+        toRun.add(Command(f'find {formatDirsStr} \\( -name "*.[ch]" -o -name "*.cc" -o -name "*.cpp" -o -name "*.hpp" \\) -exec clang-format --Werror --dry-run {{}} +'))
 
-    # Run the test commands
-    toRun()
+    return toRun
 
 def configure_dependencies():
     deps = param('INPUT_DEPENDENCIES')
@@ -451,14 +450,44 @@ def configure_dependencies():
         ])
     return None
 
-def configure_changedir():
+def configure_directories():
+    cmds = []
+
+    global dirs
+    global checks
+
     targetdir = param('INPUT_DIRECTORY')
     if targetdir:
+        dirs.curDir = targetdir
+        cmds.append(ChDir(targetdir))
+    else:
+        dirs.curDir = os.getcwd()
+    PropertyPrint('Working directory', dirs.curDir)()
+
+    dirs.srcDir = dirs.curDir
+    if not targetdir:
+        # If there is a `src` directory that contains CMakelist.txt or Makefile, take that as our source directory
+        if os.path.isfile(f'{dirs.srcDir}/src/CMakeLists.txt') or os.path.isfile(f'{dirs.srcDir}/src/Makefile'):
+            dirs.srcDir = f"{dirs.srcDir}/src"
+    PropertyPrint('Source directory', dirs.srcDir)()
+
+    dirs.conanfileDir = param('INPUT_CONANFILEEDIR', dirs.curDir)
+    PropertyPrint('Conanfile directory', dirs.conanfileDir)()
+
+    dirs.makefileDir = param('INPUT_MAKEFILEDIR', dirs.srcDir)
+    PropertyPrint('Makefile directory', dirs.makefileDir)()
+
+    return CmdList(cmds)
+
+def check_custom_phase(paramName, printText):
+    customCmd = param(paramName)
+    if customCmd:
         return CmdList([
-            PropertyPrint('Target directory', targetdir),
-            ChDir(targetdir),
+            HeaderPrint(printText),
+            Command(customCmd),
         ])
-    return None
+    else:
+        return None
 
 def check_override_phase(paramName, printText, defaultCmd = None):
     customCmd = param(paramName)
@@ -502,8 +531,15 @@ def get_checks():
 
     return checks
 
+def read_file_content(filename):
+    return open(filename, 'r').read()
+
 
 def main():
+    HeaderPrint('action-cxx-toolkit')()
+    PropertyPrint('Version', read_file_content("/usr/local/etc/action-cxx-toolkit/version"))()
+    PropertyPrint('Build date', read_file_content("/usr/local/etc/action-cxx-toolkit/version_date"))()
+
     # Configure and build the phases with what we need to run
     HeaderPrint('Configuring')()
     global checks
@@ -512,12 +548,26 @@ def main():
     try:
         phases = CmdList([])
         phases.add(configure_dependencies())
-        phases.add(configure_changedir())
+        phases.add(configure_directories())
 
-        phases.add(check_override_phase('INPUT_PREBUILD_COMMAND', 'Running custom pre-build command'))
-        phases.add(check_override_phase('INPUT_BUILD_COMMAND', 'Running custom build command', auto_build_phase))
-        phases.add(check_override_phase('INPUT_POSTBUILD_COMMAND', 'Running custom post-build command'))
-        phases.add(check_override_phase('INPUT_TEST_COMMAND', 'Running custom test command', auto_test_phase))
+        # Pre-build phase
+        phases.add(check_custom_phase('INPUT_PREBUILD_COMMAND', 'Running custom pre-build command'))
+
+        # Build phase
+        autoTestCmd = None
+        buildCmd = check_custom_phase('INPUT_BUILD_COMMAND', 'Running custom build command')
+        if not buildCmd:
+            (buildCmd, autoTestCmd) = auto_build_phase()
+        phases.add(buildCmd)
+
+        # Post-build phase
+        phases.add(check_custom_phase('INPUT_POSTBUILD_COMMAND', 'Running custom post-build command'))
+
+        # Test phase
+        testCmd = check_custom_phase('INPUT_TEST_COMMAND', 'Running custom test command')
+        if not testCmd:
+            testCmd = auto_test_phase(autoTestCmd)
+        phases.add(testCmd)
 
         # Actually run everything
         phases()

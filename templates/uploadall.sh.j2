@@ -1,0 +1,7 @@
+#!/bin/bash
+
+set -xe
+
+{% for image_name in images %}
+docker push lucteo/action-cxx-toolkit.{{ image_name }}
+{%- endfor -%}

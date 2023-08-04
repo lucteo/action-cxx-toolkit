@@ -11,6 +11,8 @@ realpath() {
     [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"
 }
 CURDIR=$(realpath $(dirname "$0"))
+CUR_VERSION=`cat ${CURDIR}/../../cur_version`
+IMAGE_NAME=lucteo/action-cxx-toolkit.${CUR_VERSION}.main
 
 # Cleanup before the test
 rm -f ${CURDIR}/greeting
@@ -21,7 +23,7 @@ docker run --rm -it --workdir /github/workspace -v "${CURDIR}":/github/workspace
     -e INPUT_PREBUILD_COMMAND='pwd; ls' \
     -e INPUT_BUILD_COMMAND='echo "Hello, world!" > /github/workspace/greeting' \
     -e INPUT_POSTBUILD_COMMAND='ls /github/workspace' \
-    lucteo/action-cxx-toolkit.main
+    ${IMAGE_NAME}
 
 # Check if the test succeeded
 if [ -f ${CURDIR}/greeting ]; then

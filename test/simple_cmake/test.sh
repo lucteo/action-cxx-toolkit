@@ -6,6 +6,8 @@ realpath() {
     [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"
 }
 CURDIR=$(realpath $(dirname "$0"))
+CUR_VERSION=`cat ${CURDIR}/../../cur_version`
+IMAGE_NAME=lucteo/action-cxx-toolkit.${CUR_VERSION}.main
 
 # Cleanup before the test
 rm -f ${CURDIR}/test_app
@@ -13,7 +15,7 @@ rm -f ${CURDIR}/test_app
 docker run --rm -it --workdir /github/workspace -v "${CURDIR}":/github/workspace \
     -e INPUT_CHECKS='install test' \
     -e INPUT_POSTBUILD_COMMAND='cp /tmp/build/test_app /github/workspace/' \
-    lucteo/action-cxx-toolkit.main
+    ${IMAGE_NAME}
 
 # Check if the test succeeded
 if [ -f ${CURDIR}/test_app ]; then
